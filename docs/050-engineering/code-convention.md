@@ -6,11 +6,11 @@
 - Repository와 Java package의 구조적 배경·소유권은 [project-structure.md](../040-architecture/project-structure.md)를 따른다.
 - API, DB, 정책, 권한과 트랜잭션의 동작 계약은 각 기준 문서를 따른다.
 - Java 일반 스타일은 [NAVER CAMPUS HACKDAY Java 코딩 컨벤션](https://naver.github.io/hackday-conventions-java/)을 참고하며, 충돌하면 JobMate 규칙을 우선한다.
-- [프로젝트 구조](../040-architecture/project-structure.md) 및 [Issue #1](https://github.com/gpekd5/jobmate/issues/1)의 확정 기준을 함께 적용한다.
+- 최초 규칙 설정은 [Issue #1](https://github.com/gpekd5/jobmate/issues/1)에서 결정했으며, 이후 변경 사항은 **이 컨벤션 문서 자체**를 갱신한다.
 
 모든 타입을 같은 형태로 만들지 않는다. 먼저 소유 domain, layer와 실제 책임을 확인하고 **동일한 책임에 동일한 이름과 작성 방식**을 적용한다. 구조 변경이 필요하다면 관련 Issue에서 결정한다.
 
-> 아래 Java 예시는 **컨벤션을 보여주기 위한 예시**이며 JobMate의 실제 API·DB 설계를 확정하거나 이 Issue에서 클래스를 생성하라는 뜻이 아니다.
+> 아래 Java 예시는 **컨벤션을 보여주기 위한 예시**이며 JobMate의 실제 API·DB 설계를 확정하거나 예시 클래스를 생성하라는 뜻이 아니다.
 
 ## Quick Reference
 
