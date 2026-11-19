@@ -381,7 +381,9 @@
           "gaps": ["상용 웹 운영 경력 확인 필요"],
           "unknowns": ["상세 근무 조건 미제공"],
           "analyzedAt": "2026-11-20T09:20:00+09:00"
-        }
+        },
+        "viewedAt": null,
+        "isNew": true
       },
       {
         "jobId": 102,
@@ -398,7 +400,9 @@
           "gaps": [],
           "unknowns": ["필수 지원자격 미제공"],
           "analyzedAt": null
-        }
+        },
+        "viewedAt": "2026-11-20T09:30:00+09:00",
+        "isNew": false
       }
     ],
     "page": 0,
