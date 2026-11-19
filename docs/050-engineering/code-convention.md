@@ -174,6 +174,19 @@ public record JobResponse(
         String companyName
 ) {
 }
+
+public record JobCreateResponse(Long jobId) {
+
+    public static JobCreateResponse from(CreateJobResult result) {
+        return new JobCreateResponse(result.jobId());
+    }
+}
+
+public record JobResult(
+        Long jobId,
+        JobStatus status
+) {
+}
 ```
 
 - DTO record에 `@Getter`, `@Setter`, `@RequiredArgsConstructor`, `@Builder`를 기본 사용하지 않는다.
@@ -400,8 +413,9 @@ public class JobSearchRepositoryImpl implements JobSearchRepository {
             JobSearchCondition condition,
             Pageable pageable
     ) {
-        // 조건별 조회 로직
-        return Page.empty(pageable);
+        // 검색 조건과 페이징/전체 건수 조회를 이곳에 구현한다.
+        // 예시는 구조 설명용이며 실제 QueryDSL 쿼리를 구현하기 전에는 호출하지 않는다.
+        throw new UnsupportedOperationException("검색 조건 및 페이징 구현 필요");
     }
 }
 ```
