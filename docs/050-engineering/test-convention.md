@@ -9,6 +9,25 @@ JobMate의 테스트 작성·검증 기준이다. [BobFull 테스트 컨벤션](
 - 본문은 `// given` (데이터·사전 상태 준비) → `// when` (대상 동작 실행) → `// then` (결과 검증) 흐름을 따른다.
 - 하나의 테스트는 하나의 핵심 동작을 검증한다. 구현하지 않은 기능이나 내부 구현을 그대로 복제하는 테스트를 만들지 않는다.
 
+## 작성 예시
+
+다음은 **테스트 작성 형식 예시**이며, 실제 JobMate의 도메인 클래스·메서드 명세를 정하는 코드는 아니다.
+
+```java
+@Test
+void 동일한_공고를_재수집하면_중복_저장되지_않는다() {
+    // given
+    ExternalJobPosting posting = 테스트_채용공고를_준비한다();
+    jobCollectionService.collect(posting);
+
+    // when
+    jobCollectionService.collect(posting);
+
+    // then
+    assertThat(jobRepository.count()).isEqualTo(1);
+}
+```
+
 ## 우선순위
 
 1. 정상·실패·경계 조건
