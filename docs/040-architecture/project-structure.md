@@ -8,11 +8,13 @@
 jobmate/
 ├── backend/       # Java 17 / Spring Boot / Gradle / MySQL / Spring Data JPA
 ├── frontend/      # React / TypeScript / Vite
-├── docs/          # 구조와 개발 기준
+├── docs/          # 기능·API·아키텍처·개발 기준
 ├── .github/       # Issue / PR 템플릿
 ├── AGENTS.md      # 공통 AI 개발 행동 규칙
 └── README.md      # 서비스 소개와 주요 기능
 ```
+
+제품 요구사항은 [기능 명세서](../020-product/feature-spec.md), HTTP 계약은 [API 명세서](../030-api/api-spec.md)를 기준으로 관리한다. **README에는 서비스 소개만 남긴다.**
 
 로컬에서 먼저 실행 가능한 MVP를 만든다. 배포 방식은 후속 Issue에서 결정하며, 운영 자산이 필요해질 때 `ops/`를 추가한다.
 
