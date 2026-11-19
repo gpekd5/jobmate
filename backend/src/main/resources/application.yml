@@ -1,4 +1,8 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
   jackson:
     deserialization:
       fail-on-unknown-properties: true
@@ -32,3 +36,17 @@ management:
   endpoint:
     health:
       show-details: never
+
+jobmate:
+  documents:
+    path: ${JOBMATE_DOCUMENTS_PATH:${user.home}/.jobmate/documents}
+  ai:
+    enabled: ${AI_ENABLED:false}
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:}
+    input-usd-per-million: ${OPENAI_INPUT_USD_PER_MILLION:0}
+    output-usd-per-million: ${OPENAI_OUTPUT_USD_PER_MILLION:0}
+    budget-usd: ${AI_BUDGET_USD:5}
+    max-output-tokens: ${OPENAI_MAX_OUTPUT_TOKENS:2048}
+    max-input-bytes: ${OPENAI_MAX_INPUT_BYTES:24000}
+    timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:30}

@@ -123,7 +123,7 @@ curl --fail-with-body -sS 'http://127.0.0.1:8080/api/v1/jobs?activeOnly=false&so
 curl --fail-with-body -sS http://127.0.0.1:8080/api/v1/jobs/1
 ```
 
-프론트는 위 `npm run dev`로 실행하고 목록·검색·필터·상세를 확인한다. S23 크기 기준 모바일 화면에서 가로 넘침 없이 터치·스크롤할 수 있어야 한다. 모든 공고의 AI 상태는 미분석이며, 추천순 정렬·점수·사용자별 읽음·AI 호출은 이번 범위가 아니다.
+프론트는 위 `npm run dev`로 실행하고 목록·검색·필터·상세를 확인한다. S23 크기 기준 모바일 화면에서 가로 넘침 없이 터치·스크롤할 수 있어야 한다. 전체 공고 검색은 개인 점수를 포함하지 않는다. 추천·프로필 화면은 아래 #8·#9 실행 절차를 따른다. 사용자별 읽음은 #11 후속이다.
 
 ### 테스트 데이터 격리
 
@@ -159,3 +159,20 @@ DB_NAME=jobmate_catalog_test ./gradlew build
 - MySQL DDL은 실패 시 전체가 자동 롤백된다고 가정하지 않는다. 적용 실패 시 DB와 Flyway 이력을 점검한 뒤 원인을 수정하고 재개한다. `clean`, `down -v`, 임의 `DROP TABLE`로 오류를 숨기지 않는다.
 
 정책 근거: [Flyway 버전 마이그레이션](https://documentation.red-gate.com/fd/versioned-migrations-273973333.html), [마이그레이션·트랜잭션](https://documentation.red-gate.com/flyway/flyway-concepts/migrations).
+
+## 프로필·AI 추천 실행 (#8·#9·#6)
+
+기존 DB를 보존한 상태에서 local 프로파일로 시작하면 V2(프로필/문서), V3(추천), V4(비용 원장), V5(문서 분석 모델·프롬프트 버전)가 순서대로 적용된다. V1은 변경하지 않는다. 인증 전 개인 API는 루프백 주소/Host/Origin을 확인하며 프론트도 localhost/127.0.0.1에서만 개인 API를 사용한다. 기존 공개 landing 배포는 이 개인정보 앱을 배포하지 않는다.
+
+1. `.env.example`의 AI 설정을 참고한다. 기본 `AI_ENABLED=false`라 키 없이도 업로드·수동 검토/프로필 확정·공고 탐색·미분석 UI를 사용할 수 있다.
+2. 원본 저장소 `JOBMATE_DOCUMENTS_PATH`는 저장소/웹 정적 경로 밖의 비공개 절대 경로를 지정한다. 기본은 `~/.jobmate/documents`다. 디렉터리 0700/파일 0600 권한을 사용하고 임의 UUID로 저장한다. 원본 다운로드 API는 없다. 삭제 실패 티켓은 다음 파일 작업/재시작에 재시도한다. 로컬 백업을 만들면 직접 삭제 정책도 적용해야 하며 이번 작업은 AWS 백업을 구성하지 않는다.
+3. `/profile`에서 자체 제작한 테스트 PDF/DOCX(10 MiB 이하)를 올린다. 업로드만으로 OpenAI를 호출하지 않는지 확인한다. 선택 포트폴리오는 파일 또는 공개 GitHub 저장소 README다. 이미지 PDF·암호화/매크로·DOCX 외부 링크는 지원하지 않는다.
+4. 실제 OpenAI 사용을 원할 때만 `AI_ENABLED=true`, `OPENAI_API_KEY`, `OPENAI_MODEL`과 현재 모델의 **입력/출력 USD/백만 토큰** 단가를 설정하고 서버를 재시작한다. 실제 요금은 [공식 가격표](https://developers.openai.com/api/docs/pricing)를 확인한다. 값이 없거나 0이면 비활성화된다. 키는 클라이언트·커밋·명령 출력에 넣지 않는다. 모델은 하드코딩하지 않는다.
+5. 전송 업체/목적/범위를 확인하고 목적별 동의를 저장한 뒤 문서와 링크를 선택해 명시적으로 분석한다. 입력 최소화/마스킹 후 전송하며 초안은 자동 확정하지 않는다. 초안을 수정하고 확정하면 추천이 새 profileVersion을 사용한다.
+6. 홈 추천과 상세에서 실제 분석 상태/근거/점수를 확인한다. 미분석/실패는 개별 분석 버튼, 진행 상태는 제한된 GET 폴링, 정보 부족은 점수 없이 안내한다. 동의 철회 후 새 유료 호출과 이전 epoch 추천 사용을 막는다.
+
+예산은 `AI_BUDGET_USD`(최대 5)이며 일시 실패/타임아웃도 최대 예상액을 보수적으로 영구 선점한다. 잔액을 되돌리는 API·자동 충전은 없다. 공급자 실제 크레딧/만료/단가/청구를 보장하는 장치가 아니므로 OpenAI 측 제한도 함께 설정한다. `OPENAI_MAX_INPUT_BYTES` 기본 24000, `OPENAI_MAX_OUTPUT_TOKENS` 기본 2048, `OPENAI_TIMEOUT_SECONDS` 기본 30이다. 입력이 크면 조용히 잘라내지 않고 실패한다. 전체 원문·LLM 응답은 로그에 남기지 않는다.
+
+추천 스케줄러 기본 간격 60초, 테스트에서는 `jobmate.recommendation.scheduling-enabled=false`로 끈다. 모집 중·현재 버전 미분석 후보를 먼저 필터링한 뒤 최신 200개를 고른다. 이 범위는 검색 제한이 아니며 전체 공고/개별 분석은 계속 이용할 수 있다. #7 수집 이벤트 연결은 후속이다.
+
+위 전용 `*_test` DB에서 전체 백엔드 테스트를 실행한다. AI 테스트는 Mock이며 실제 OpenAI를 호출하지 않는다. 비용 동시성 테스트는 테스트 DB의 비용 원장을 초기화하므로 개발/실사용 DB에서 테스트하지 않는다. 프론트 검증은 `npm run test`, `npm run lint`, `npm run build`, `npm run format:check`다.
