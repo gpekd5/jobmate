@@ -1,4 +1,4 @@
-# JobMate API 명세서 (설계 초안 v1.0)
+# JobMate API 명세서 (정책 합의 v1.2)
 
 > 기준일: 2026-11-20 · 문서 작업: #19 · [기능 명세서](../020-product/feature-spec.md)
 >
@@ -71,6 +71,9 @@
 | 추천 | GET | `/api/v1/recommendations` | 적합도 순 추천 피드 | USER | #9, #6 |
 | 추천 | GET | `/api/v1/jobs/{jobId}/match` | 내 프로필 기준 적합도 상세 | USER | #9 |
 | 추천 | POST | `/api/v1/recommendations/refresh` | 필요 시 재평가 요청 (중복/비용 제한) | USER | #9 |
+| 개별 AI 분석 | POST | `/api/v1/jobs/{jobId}/match/analyses` | 미분석 공고 직접 분석 요청 | USER | #9 |
+| 확인/미확인 | PUT | `/api/v1/me/jobs/{jobId}/viewed` | 상세 진입 후 확인(멱등) | USER | #6 |
+| 확인/미확인 | DELETE | `/api/v1/me/jobs/{jobId}/viewed` | 미확인 되돌리기 | USER | #6 |
 | 관심 공고 | GET | `/api/v1/me/bookmarks` | 관심 공고 목록 | USER | #10 |
 | 관심 공고 | PUT | `/api/v1/me/bookmarks/{jobId}` | 관심 공고 저장(멱등) | USER | #10 |
 | 관심 공고 | DELETE | `/api/v1/me/bookmarks/{jobId}` | 관심 공고 해제 | USER | #10 |
@@ -102,7 +105,7 @@
 
 `GET /api/v1/jobs?keyword=Spring&region=서울&jobRole=BACKEND&source=SARAMIN&activeOnly=true&page=0&size=20&sort=NEWEST`
 
-- 모두 선택 쿼리: `keyword`, `region`, `jobRole`, `source`, `activeOnly` (기본 true), `page`, `size`, `sort=NEWEST|DEADLINE`.
+- 모두 선택 쿼리: `keyword`, `region`, `jobRole`, `source`, `activeOnly` (기본 true), `page`, `size`, `sort=NEWEST|DEADLINE`. 인증 사용자는 `viewStatus=ALL|UNREAD|READ` 필터도 사용 가능; 비인증 호출에는 개인 읽음 정보를 노출하지 않는다.
 - 복잡한 키워드 자연어 검색/벡터 검색은 MVP 요구사항이 아니다.
 
 ```json
@@ -215,14 +218,16 @@
     "documentId": 14,
     "type": "RESUME",
     "fileName": "resume.pdf",
-    "analysisStatus": "NOT_STARTED",
+    "analysisStatus": "NOT_ANALYZED",
     "uploadedAt": "2026-11-20T09:10:00+09:00"
   }
 }
 ```
 
-- 원본 파일은 기본적으로 **비공개 저장소**에만 저장하며, 파일 크기·지원 형식·바이러스 검사 여부·보관 기간은 #8/#11에서 확정.
-- `GET /api/v1/me/documents`: 메타데이터 목록(원본 파일/추출 본문은 기본 반환하지 않음).
+- 이력서는 PDF/DOCX, 파일당 최대 10 MiB로 제한한다. 확장자/MIME/파일 시그니처 검사, 악성·매크로/암호화/손상된 파일 거절, 소유권 보호/비공개 경로·임의 저장 키를 사용한다.
+- 사용자가 삭제/교체할 때까지 원본을 비공개 보관한다. 삭제/탈퇴 시 원본·추출물·관련 캐시의 접근을 즉시 차단하고 삭제하며, 백업이 있다면 최대 30일 이내 파기하고 복원 시 삭제 기록을 재적용한다.
+- **업로드만 하면 NOT_ANALYZED, AI 호출 없음.** 사용자 'AI 분석하기' 명시 요청에서만 호출한다. 분석 성공/실패는 확정 프로필 상태와 별개다.
+- `GET /api/v1/me/documents`: 메타데이터 목록(원본 파일/추출 본문은 기본 반환하지 않음). 문서 분석 상태는 `NOT_ANALYZED | ANALYZING | ANALYZED | FAILED`.
 - `DELETE /api/v1/me/documents/{documentId}`: 204. 원본·추출 결과·캐시·백업의 삭제/파기 정책 적용, 다른 사용자 소유 ID는 404/403 정책에 맞게 차단.
 
 ### 4.2 포트폴리오 링크
@@ -250,7 +255,7 @@
 }
 ```
 
-- `analysisMode = LOCAL_ONLY | EXTERNAL_LLM` [설계안]. **EXTERNAL_LLM**은 제공업체/목적/전송 범위에 대한 별도 명시적 사전 동의가 있고 이를 서버가 검증하는 경우만 허용; 단순 JSON 플래그 하나로 동의를 대체하지 않는다.
+- 초기 분석은 **사용자 버튼 클릭으로만 실행하는 OpenAI API 기반 EXTERNAL_LLM**이다. 별도의 업체·분석 목적·전송 범위 동의를 서버에서 확인하고 연락처/이메일/상세 주소 등 개인정보를 마스킹·최소화한다. 단순 요청 플래그는 동의를 대신하지 않는다. LOCAL_ONLY 모델 모드는 초기 범위 제외.
 - `LOCAL_ONLY`는 구현된 로컬 추출이 있는 경우만 지원, 미지원이면 명확한 오류를 반환. API 설계가 모든 분석 모드의 구현을 강제하지 않음.
 - 분석은 지연될 수 있으므로 202 + 추적 ID를 반환한다.
 
@@ -286,7 +291,7 @@
 }
 ```
 
-- `status = PENDING | RUNNING | SUCCEEDED | FAILED`; `FAILED`일 때 `result:null`과 안전한 에러 코드. 처리 중 `result:null`.
+- 분석 작업 상태는 `PENDING | RUNNING | SUCCEEDED | FAILED`, 문서 상태는 `NOT_ANALYZED | ANALYZING | ANALYZED | FAILED`로 구분한다. `FAILED`일 때 `result:null`과 안전한 오류 코드. 명시 재분석 클릭 없이 자동 재호출하지 않는다.
 - `result`는 **사용자 확인 전 초안**. 자동으로 확정 프로필을 덮어쓰지 않는다.
 - 연차·기술 수준·학력 등을 이력서 밖에서 추측하지 않는다. 분석 오류·불완전한 PDF·예산 초과 시에도 원본 유지.
 
@@ -312,7 +317,7 @@
 ```
 
 - `GET`의 반환 형태는 위 필드가 `data`로 감싸진 형태. `PUT`도 승인·수정된 데이터로 전체 교체하며 서버가 `profileVersion`을 증가시킨다.
-- 프로필에 없는 항목을 임의 보충하지 않음. 전송 가능한 최대 필드 길이/개수는 #8에서 검증 기준으로 정한다.
+- 프로필에 없는 항목을 임의 보충하지 않는다. 파일을 새로 올려도 기존 확정 프로필은 유지하고, 사용자가 분석 결과를 검토·확정한 뒤에만 `profileVersion`을 올린다.
 - 충돌 검출을 위한 버전 기반 갱신은 고려하고, 구현 시 단일 사용자 흐름에 맞게 결정한다.
 
 `GET /api/v1/me/preferences` · `PUT /api/v1/me/preferences`
@@ -337,13 +342,13 @@
 
 ```json
 {
-  "provider": "PROVIDER_TO_BE_SELECTED",
+  "provider": "OPENAI",
   "purposes": ["PROFILE_EXTRACTION", "JOB_MATCHING"],
   "consented": false
 }
 ```
 
-- 실제 `provider`, 목적, 보관 정책, 철회 효과, 제공 범위 및 동의 시점 저장 구조는 #8/#11에서 결정한다.
+- 기본 공급자 OpenAI. 사용자에게 전송 데이터·분석 목적·보관·철회 효과를 알리고 동의 시점/정책 버전을 기록한다. 파일 업로드만으로 동의하지 않는다.
 - 서버가 동의를 검증하지 못하면 `EXTERNAL_LLM` 호출 차단(403 `AI_CONSENT_REQUIRED`).
 - 기존 비동기 작업 중 동의 철회 후 처리 취소/결과 삭제 범위는 정책 결정 필요. 동의 없이 모델에 전송하도록 자동 폴백하지 않는다.
 
@@ -351,9 +356,9 @@
 
 ### 5.1 추천 피드
 
-`GET /api/v1/recommendations?page=0&size=20&sort=MATCH_SCORE&onlyActive=true`
+`GET /api/v1/recommendations?page=0&size=20&sort=MATCH_SCORE&onlyActive=true&viewStatus=ALL`
 
-- `sort=MATCH_SCORE | NEWEST | DEADLINE` [설계안]. 직무/지역 등 선택 조건은 사용자 Preferences를 기본 적용하고 쿼리에서 추가 검색할 수 있다.
+- `sort=MATCH_SCORE | NEWEST | DEADLINE`, `viewStatus=ALL | READ | UNREAD`(기본 ALL), `analysisStatus=ALL | ANALYZED | NOT_ANALYZED`. 미분석 공고도 검색/추천/추가 탐색에서 표시한다. 선호 조건은 사용자 Preferences를 기본 적용한다.
 - 프로필이 확정되지 않으면 `409 PROFILE_NOT_CONFIRMED` 등으로 안내. 무근거 점수를 생성하지 않음.
 
 ```json
@@ -405,10 +410,10 @@
 }
 ```
 
-- `match.status = PENDING | READY | INSUFFICIENT_DATA | FAILED`.
+- `match.status = NOT_ANALYZED | PENDING | READY | INSUFFICIENT_DATA | BUDGET_EXHAUSTED | FAILED`. AI가 분석하지 않은 공고는 `score=null`이고 사용자는 개별 분석 요청 가능. `viewedAt=null`이면 미확인, 날짜가 있으면 확인, `isNew`는 최근 수집 여부로 별도 개념이다.
 - 점수 0~100은 **적합도(채용 요건 일치 정도)**이지 합격 확률이 아니다. 분석 미완료/근거 부족 상태는 `score:null`을 허용.
 - `sort=MATCH_SCORE`일 때 숫자 미산출 공고의 하단 배치·표시를 별도 일관 규칙으로 둔다.
-- 추천 결과 캐시는 `profileVersion + jobVersion + scoringVersion` 기준으로 무효화하여 재조회마다 유료 LLM 호출하지 않는다.
+- 캐시 키는 `profileVersion + jobVersion + scoringVersion + modelVersion + promptVersion`. 변경된 조합에 한해서만 재분석하고, 채용공고 수집 시 PDF/포트폴리오를 재분석하지 않는다.
 
 ### 5.2 적합도 상세
 
@@ -449,7 +454,8 @@
 }
 ```
 
-- `category=MUST | PREFERRED | RESPONSIBILITY`, `match=MATCH | PARTIAL | GAP | UNKNOWN`. 미확인과 불일치 분리.
+- `category=MUST | PREFERRED | RESPONSIBILITY`, `match=MATCH | PARTIAL | GAP | UNKNOWN`. 미확인과 불일치 분리. 초기 가중치 담당업무 35/필수 자격 35/우대 20/근무조건 10, MATCH=1/PARTIAL=0.5/GAP=0, UNKNOWN은 불일치와 구분한다.
+- 검증 가능한 상세 JD 요건/업무가 2개 이상이며 그중 필수 자격 또는 담당업무가 최소 하나, 확정 프로필이 있어야 점수를 산출. 미충족 시 `score=null`+`INSUFFICIENT_DATA`. 제공되지 않은 범주는 가중치 분모에서 제외하여 재정규화하고 근거 범위를 표시한다. 필수 자격 미충족은 감점 및 경고로 표시하되 공고를 목록에서 삭제하지 않는다.
 - 자동 추천 1차 필터는 일반 코드로 수행, 의미 비교는 LLM 활용 가능. 점수는 출력 검증·가중치 정책을 거쳐 산출하며 임의 LLM 숫자를 바로 노출하지 않는다.
 - 데이터/동의/예산 미충족일 때 `INSUFFICIENT_DATA` 또는 `FAILED`과 명확한 이유를 표시.
 
@@ -459,6 +465,30 @@
 
 - 사용자가 피드를 열 때마다 반복 실행 금지, 동일한 버전에 대한 중복 요청 억제, 비용/호출 횟수 제한.
 - 기본은 서버 자동 재계산이며 수동 새로고침은 선택.
+
+### 5.4 미분석 공고 개별 AI 분석 (#9)
+
+`POST /api/v1/jobs/{jobId}/match/analyses` — 사용자가 'AI 적합도 분석하기'를 눌렀을 때만 호출(이력서 원문 재분석 없음). 결과 캐시가 유효하면 새 LLM 호출 없이 반환. 202 반환 예시:
+
+```json
+{"success":true,"data":{"jobId":102,"status":"PENDING","requestId":"job-match-102-01"}}
+```
+
+- 사용자당 하루 개별 분석 3건 제한, 자동 분석 회차당 10건·하루 20건 제한, 누적 $5 비용 가드. 같은 조합 분석 중복/재호출 방지.
+- 예산이 없으면 `AI_BUDGET_EXHAUSTED` 등 명확한 상태/오류, JD 부족이면 `INSUFFICIENT_DATA`. 결과 조회는 `GET /api/v1/jobs/{jobId}/match`.
+
+### 5.5 공고 자동 확인/미확인 (#6)
+
+- 공고 카드 클릭 → **상세 정보 로드 성공** → `PUT /api/v1/me/jobs/{jobId}/viewed` 실행. 같은 공고를 다시 열어도 최초 `viewedAt`을 보존하는 멱등 처리. 200 반환:
+
+```json
+{"success":true,"data":{"jobId":101,"viewedAt":"2026-11-20T09:30:00+09:00"}}
+```
+
+- 사용자 선택 시 `DELETE /api/v1/me/jobs/{jobId}/viewed` → 204, 미확인으로 되돌림.
+- 추천/목록의 `viewStatus=ALL|READ|UNREAD` 필터는 개인 인증 데이터. 공개 API에서 읽음 여부 노출 금지.
+- **GET 공고 상세 자체에 읽음 기록을 섞지 않는다.** 미리보기/프리페치가 읽음으로 오기록되지 않도록 프론트에서 명시적으로 상태 변경 요청.
+- `isNew`는 최근 수집 여부로 읽음·AI 분석과 분리하고 공고 수정만으로 읽음을 초기화하지 않는다.
 
 ## 6. 관심 공고·지원 기록 (#10)
 
@@ -545,15 +575,34 @@
 - 모델/프롬프트 버전, 토큰·시간·성공/실패·비용 추정·재시도 등의 **내부 운영 지표**는 #9/#16에서 기록한다. 원문 이력서·LLM 전체 입력을 일반 로그로 남기지 않는다.
 - 외부 LLM 공급자/모델·일별 비용 한도·분석 재사용/배치 정책은 **확정 전**. 임의로 API 키나 모델 이름을 하드코딩하지 않는다.
 
-## 9. 계약 확정 전 확인할 항목
+## 9. 확정한 초기 정책과 외부 의존 조건
 
-1. **개인정보·AI 전송:** 어떤 업체·목적·문서 범위를 전송할지, 동의·철회·삭제 방식, 저장/보관 기간.
-2. **파일:** 최대 크기/형식, 바이러스·매크로 대응, 업로드 실패/암호화 파일 처리.
-3. **출처 계약:** 사람인·원티드·잡코리아 API 승인, 상세 본문 취득/저장/AI 가공 가능 범위.
-4. **추천 정책:** 퍼센트 가중치/필수요건/정보 부족 시 반환 규칙, 호출 비용 상한과 재계산 빈도.
-5. **인증·인가:** 카카오 OAuth 방식, 토큰/세션, 로컬에서 개발자용 API 차단, 운영에서 개인 파일 접근 정책.
-6. **DB:** 데이터형/NULL 정책, source+externalId UNIQUE, 작업 상태 전이, 동시성·트랜잭션. 마이그레이션은 #5 이후.
-7. **API 세부:** ID 이름/정확한 Enum, 파일 다운로드 Endpoint, 응답 오류 세부 필드, 검색 전체 필터, 204 응답 등은 최초 구현 Issue에서 한 번만 확정.
+### 비용·개인정보·문서
+- **OpenAI API로 시작**, 사용자가 보유했다고 밝힌 $5 크레딧 우선 사용(실제 가용/만료 별도 확인), 월 비용 목표 약 1만 원. 초기 애플리케이션 누적 **$5 비용 가드**를 설정하되 실제 청구·환율과 차이가 발생할 수 있으므로 제공업체 예산 제한도 병행한다. **자동 충전/상향 금지**.
+- 저비용 모델부터 검증. 모델/토큰 제한·타임아웃은 서버 설정으로 관리하고 일시적 오류 재시도는 1회까지만. 입력·출력 원문과 개인정보는 로그에 저장하지 않음.
+- **PDF/DOCX, 10 MiB/파일**. 업로드=`NOT_ANALYZED`, 사용자 버튼 클릭에서만 AI 분석 요청. 진행 `ANALYZING`, 완료 `ANALYZED`, 실패 `FAILED`; 확정 프로필은 사용자 검토/저장 때만 변경. 문서 분석 결과는 DB에 저장/재사용.
+- 원본 비공개 보관, 사용자가 삭제/교체하면 원본·추출문·캐시 삭제 및 즉시 접근 차단. 백업은 운영 시 최대 30일 안에 파기하고 복원 시 삭제 기록을 재적용한다.
+- 외부 OpenAI 전송은 업체/목적/데이터 범위에 대한 명시적 동의, 연락처·이메일·상세 주소 등 민감정보 마스킹/최소화가 선행되어야 함.
+
+### 수집·추천·점수
+- 승인/이용 조건에 부합하는 제공처에서 **6시간마다(Asia/Seoul 00/06/12/18)** 신규/수정 공고 수집. 제공처 한도·허가 조건이 우선. 상세 JD 저장·분석 권한이 없다면 시도하지 않는다.
+- **허용된 수집 공고는 모두 검색 가능하게 유지**하며, AI 선별에서 제외해도 버리지 않는다. Java 후보 선별은 보수적이며 일부 추가 탐색 후보도 AI 분석에 배정한다.
+- 초기 분석 한도: **수집 회차당 자동 10건, 하루 자동 20건**, 우선 후보 80% / 추가 탐색 후보 20%, 사용자의 개별 분석 하루 3건. $5 비용 가드와 사용량 제한 중 **먼저 도달한 제한이 우선**.
+- 점수 초깃값은 담당업무·직무경험 35%, 필수 지원자격 35%, 우대사항 20%, 근무조건 10%. Java 규칙으로 산출하며 LLM 자유 숫자를 그대로 점수로 사용하지 않음.
+- 구체 요건이 2개 미만이거나 필수/담당업무 근거가 전혀 없으면 `score=null`, `INSUFFICIENT_DATA`; 우대사항 누락을 불일치로 취급하지 않는다. 점수는 합격 가능성이 아니라 요구조건 적합도다.
+- 이미지 JD OCR·불특정 외부 링크 자동 추적은 초기 제외. 포트폴리오 URL은 사용자가 지정한 공개 GitHub 프로젝트 범위의 README 등 허용 자료만 명시적으로 조회하고 SSRF를 방지한다.
+
+### 읽음·인증
+- 카드 클릭 후 **상세 화면 로드 성공** 시 프론트가 `PUT /api/v1/me/jobs/{jobId}/viewed` 호출. 이력은 사용자별로 저장하며 `GET` 공고 상세는 부작용 없이 유지.
+- `READ`/`UNREAD` 필터·미확인 수, `NEW`(새 수집)/`분석 상태`와의 구분. 기본 읽음 버튼 없음. 필요하면 삭제 API로 미확인 복귀.
+- 최초 개발은 **루프백 로컬 단일 사용자**. 공개 배포 전 **카카오 OAuth2·Spring Security 세션** 인증, Secure/HttpOnly/SameSite 쿠키·CSRF·소유권 검증. 인증 전 실제 개인정보를 가진 앱을 외부나 와이파이에 공개하면 안 됨.
+- 초기 알림은 웹사이트 내 새 공고/미확인 수만 표시. 모바일 푸시·이메일은 후속.
+
+### 외부 확인만 남은 항목
+1. 채용 사이트 API 승인/요청량/상세 JD 취득·저장·LLM 가공 허가.
+2. OpenAI 크레딧 유효성·모델 요금·전송 데이터 정책과 실제 청구.
+3. 배포 스토리지·백업의 삭제/파기 정책 실제 작동.
+4. 모델 분석 품질 및 초기 가중치의 샘플 평가; DB 컬럼/Enum/세부 Validation은 구현 시 확정.
 
 ## 10. 구현·검증 원칙
 
@@ -561,7 +610,7 @@
 - 외부 데이터 동기화에서 동일 `source+externalId`는 중복 저장하지 않는다. 동일 회사·제목을 이유로 다른 공고를 강제 병합하지 않는다.
 - 새로고침·동시 요청이 중복 LLM 비용을 발생시키지 않도록 캐시·멱등 처리·timeout을 고려한다.
 - 본인이 아닌 사용자 데이터에 대한 요청은 처리하지 않는다. 외부로 공개할 때는 개인 API 인증/권한 테스트를 반드시 수행한다.
-- 프론트는 모바일 우선, 로딩/오류/분석 불충분을 분리하고 추천 사유를 설명한다.
+- 프론트는 모바일 우선, 로딩/오류/분석 불충분을 분리하고 추천 사유를 설명한다. 상세 로드 성공 후 읽음 API를 호출하며, 미분석 후보도 노출한다.
 - 구현 PR에는 **실제로 호출한 Endpoint 예시와 HTTP 상태, 관련 테스트 결과, 미실행 이유**를 기록한다.
 - 설계 변경 시 해당 API 섹션과 [기능 명세서](../020-product/feature-spec.md)를 함께 갱신하며, 서비스 소개 전용 `README.md`에 개발 절차를 넣지 않는다.
 
