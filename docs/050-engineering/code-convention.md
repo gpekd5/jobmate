@@ -83,8 +83,8 @@
 
 ```java
 public record JobCreateRequest(
-        String title,
-        String companyName
+        @NotBlank String title,
+        @NotBlank String companyName
 ) {
 }
 
@@ -242,7 +242,8 @@ public class JobController {
 ```
 
 - class에 `@RestController`, base path의 `@RequestMapping`, constructor injection의 `@RequiredArgsConstructor`를 사용한다.
-- Request Body는 `@Valid`로 검증한다.
+- Request Body는 `@Valid`로 검증한다. 예를 들어 `record JobCreateRequest(@NotBlank String title, ...)`처럼 요청 DTO에 Bean Validation 제약을 선언한다.
+- 인증이 필요한 Endpoint는 `@AuthenticationPrincipal AuthMember authMember` 등 인증 컨텍스트를 사용하며, 클라이언트가 전달한 member ID를 신뢰하지 않는다.
 - `@Positive @PathVariable`, `@Min @RequestParam` 등 method parameter validation이 실제로 있을 때만 class-level `@Validated`를 추가한다.
 - 공통 `ApiResponse<T>` 패턴을 원칙으로 하되, 구체적인 응답 필드·API 계약은 첫 API 구현 Issue에서 확정한다.
 - Controller는 HTTP 변환과 Service 호출만 담당하고 Repository나 Entity를 직접 다루지 않는다.
