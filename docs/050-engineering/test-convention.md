@@ -1,6 +1,6 @@
 # 테스트 컨벤션
 
-[Issue #1](https://github.com/gpekd5/jobmate/issues/1)의 E 확정 기준이다. [BobFull 테스트 컨벤션](https://github.com/gpekd5/bobfull-backend/blob/develop/docs/050-engineering/test-convention.md)의 핵심 작성 원칙을 유지한다.
+JobMate의 테스트 작성·검증 기준이다. [BobFull 테스트 컨벤션](https://github.com/gpekd5/bobfull-backend/blob/develop/docs/050-engineering/test-convention.md)의 핵심 작성 원칙을 유지한다.
 
 ## 작성 방식
 
@@ -22,4 +22,4 @@
 
 실제 실행한 명령과 결과를 PR에 간결하게 남긴다. 실패와 미실행 이유, 확인하지 못한 범위를 구분하며 미실행 테스트를 PASS로 표기하지 않는다. 별도의 Evidence 문서를 매 작업마다 만들지 않는다.
 
-문서만 변경할 때는 문서 링크·템플릿·Git diff 등 관련 검증을 수행한다. 앱이 없는 Issue #1에서는 Spring/React 테스트·빌드를 실행하지 않았다는 이유를 PR에 남긴다.
+문서만 변경할 때는 문서 링크·템플릿·Git diff 등 관련 검증을 수행한다. 테스트 가능한 앱이 없는 문서·설정 작업에서는 앱 테스트·빌드를 실행하지 않은 이유를 PR에 남긴다.
