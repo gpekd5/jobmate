@@ -8,7 +8,7 @@
 Issue → feature 브랜치 → 작업·검증 → main 대상 PR → 사용자 Merge
 ```
 
-Issue #1의 브랜치는 `feature/1-project-setup`이다. 변경 전 현재 브랜치와 작업 트리를 확인하고, 기존 사용자 변경은 보존한다. `main`에 직접 작업하거나 직접 push하지 않는다.
+예: `feature/1-project-setup`, `feature/2-bootstrap`. 변경 전 현재 브랜치와 작업 트리를 확인하고, 기존 사용자 변경은 보존한다. `main`에 직접 작업하거나 직접 push하지 않는다.
 
 ## Issue·Commit·PR
 
