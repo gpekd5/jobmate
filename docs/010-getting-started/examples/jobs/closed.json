@@ -1,0 +1,20 @@
+{
+  "companyName": "예시랩 · 자체 예시",
+  "title": "백엔드 개발자 · 마감 예시",
+  "jobRole": "BACKEND",
+  "region": "서울",
+  "employmentType": "FULL_TIME",
+  "experienceText": "경력",
+  "postedAt": "2026-11-01T09:00:00+09:00",
+  "deadlineAt": "2026-11-10T18:00:00+09:00",
+  "active": false,
+  "originalUrl": "https://example.com/jobmate/closed-example",
+  "responsibilities": ["API 유지보수"],
+  "requiredQualifications": ["Java 개발 경험"],
+  "preferredQualifications": [],
+  "skills": ["Java"],
+  "workConditions": [],
+  "detailAvailability": "AVAILABLE",
+  "detailSource": "USER_PROVIDED",
+  "detailExtractedAt": "2026-11-20T09:00:00+09:00"
+}
