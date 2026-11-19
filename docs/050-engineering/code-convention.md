@@ -292,13 +292,16 @@ public class JobService {
 
     @Transactional(readOnly = true)
     public JobResult get(Long jobId) {
-        // 조회
-        return null;
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(JobErrorCode.JOB_NOT_FOUND));
+        return new JobResult(job.getId(), job.getStatus());
     }
 
     @Transactional
     public void expire(Long jobId) {
-        // 상태 변경
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(JobErrorCode.JOB_NOT_FOUND));
+        job.expire();
     }
 }
 ```
@@ -491,7 +494,7 @@ public HttpStatus getHttpStatus() {
 주요 class에는 시스템에서 담당하는 책임을 짧은 `//` 주석으로 설명한다.
 
 - Service, Processor, Policy, Validator, Adapter, 주요 Query Repository 구현체에 적용할 수 있다.
-- Consumer, Scheduler, Filter, Interceptor와 Outbox 처리 class에도 같은 기준을 적용한다.
+- Scheduler, Filter, Interceptor 등 기술 진입점에도 해당하는 경우 같은 기준을 적용한다.
 - class 이름을 한글로 번역하지 않고 실제 흐름과 책임을 표현한다.
 - 이름과 구조만으로 책임이 충분히 명확하면 기계적으로 추가하지 않는다.
 
@@ -504,7 +507,7 @@ public class JobCollectionService {
 
 ### 메서드 주석
 
-주요 public method는 class 책임 안에서 수행하는 역할을 짧은 `//` 주석으로 설명할 수 있다. 여러 단계의 use case, 상태 변경, transaction 경계, lock과 동시성 처리, 외부 시스템 조율, Outbox·Kafka·Retry 처리 또는 중요한 부작용이 있을 때 우선한다.
+주요 public method는 class 책임 안에서 수행하는 역할을 짧은 `//` 주석으로 설명할 수 있다. 여러 단계의 use case, 상태 변경, transaction 경계, lock과 동시성 처리, 외부 API 호출·재시도 또는 중요한 부작용이 있을 때 우선한다.
 
 단순 CRUD, 이름이 명확한 조회, 단순 Adapter 위임, getter, 단순 factory·mapper와 자명한 Controller endpoint에는 기계적으로 추가하지 않는다. method 이름을 그대로 한글로 번역하거나 class 주석과 같은 내용을 반복하지 않는다.
 
@@ -515,8 +518,8 @@ public class JobCollectionService {
 - 비즈니스 규칙과 상태 전이 조건
 - transaction 경계와 propagation 이유
 - lock 획득 순서, 동시성 제약과 DB UNIQUE를 최종 방어선으로 사용하는 이유
-- Outbox 저장 시점, after-commit, Retry·DLT와 멱등성 처리 이유
-- Redis Pub/Sub, 다중 App instance, Kafka와 WebSocket의 동작 제약
+- 채용공고 수집 중복 방지, 재시도, 멱등성 조건
+- 외부 API rate limit과 스케줄러 실행 제약
 - 외부 API 호출과 DB transaction을 분리하는 이유
 - AI 개인정보 검증, Rule·LLM 책임 경계와 결과 검증·canonicalization
 
