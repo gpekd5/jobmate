@@ -2,7 +2,7 @@
 
 > 기준일: 2026-11-20 · 문서 작업: #19 · [기능 명세서](../020-product/feature-spec.md)
 >
-> **이 문서는 구현 전 API 설계안이다.** 아래 경로는 현재 동작한다고 보장하지 않으며, 기능별 Issue에서 구현/테스트한 시점에 계약을 확정한다. 외부 채용 사이트 API 경로를 뜻하지 않는다.
+> **전체 로드맵을 포함하는 API 명세다.** 채용공고 목록·상세·로컬 개발 입력은 #5·#6 작업에서 구현하며 확정 계약은 §3을 따른다. 추천·개인 데이터 등 나머지 경로는 후속 설계이며 현재 동작을 보장하지 않는다. 외부 채용 사이트 API 경로를 뜻하지 않는다.
 > 개인 데이터 API는 #11 인증 전에 **신뢰할 수 있는 루프백 로컬 개발환경에서만** 사용할 수 있다. 실제 업로드 파일과 사용자 정보는 Git에 넣지 않는다.
 
 ## 1. 공통 계약
@@ -126,7 +126,9 @@
         "active": true,
         "originalUrl": "https://example.com/jobs/101",
         "detailAvailability": "UNAVAILABLE",
-        "lastCollectedAt": "2026-11-20T08:00:00+09:00"
+        "lastCollectedAt": "2026-11-20T08:00:00+09:00",
+        "jobVersion": 1,
+        "updatedAt": "2026-11-20T08:00:00+09:00"
       }
     ],
     "page": 0,
@@ -171,14 +173,16 @@
     "detailAvailability": "AVAILABLE",
     "detailSource": "USER_PROVIDED",
     "detailExtractedAt": "2026-11-20T09:00:00+09:00",
-    "lastCollectedAt": "2026-11-20T08:00:00+09:00"
+    "lastCollectedAt": "2026-11-20T08:00:00+09:00",
+    "jobVersion": 1,
+    "updatedAt": "2026-11-20T08:00:00+09:00"
   }
 }
 ```
 
-- `detailAvailability`: `AVAILABLE | PARTIAL | UNAVAILABLE | RESTRICTED` [설계안].
-- `detailSource`: `OFFICIAL_API | PERMITTED_CONTENT | USER_PROVIDED | UNKNOWN` [설계안].
-- 부분/미제공 필드는 `null` 또는 빈 배열을 일관되게 사용. **미확인과 '해당 없음'은 구분**하도록 실 구현에서는 필드별 `availability`가 필요할 수 있다.
+- `detailAvailability`: `AVAILABLE | PARTIAL | UNAVAILABLE | RESTRICTED`.
+- `detailSource`: `OFFICIAL_API | PERMITTED_CONTENT | USER_PROVIDED | UNKNOWN`.
+- JD 5개 목록 필드의 `null`은 미제공·미확인, `[]`는 출처에서 명시한 해당 없음, 값이 있는 배열은 확인된 내용이다. 없는 요건을 추측해 채우지 않는다. `AVAILABLE`은 5개가 모두 non-null, `PARTIAL`은 일부만 non-null이다. `UNAVAILABLE`·`RESTRICTED`는 모두 `null`이며 `detailExtractedAt`도 `null`이다. 이 조합을 어기는 입력은 400이다.
 - 수집 가능 여부와 별도로 **저장/재가공/LLM 전송 권리**가 있는지 점검한다. 권한 없는 원문은 반환·영속화하지 않는다.
 - `requiredQualifications`/ `preferredQualifications`는 설명 문자열 목록이며, LLM에 의한 구조화·근거 표현은 추천 상세에서 확인한다.
 
@@ -204,6 +208,19 @@
 - 필수 입력: `companyName`, `title`; URL 및 상세 섹션은 입력 시 유효성 검증. 임의 사이트 원문 자동 다운로드를 의미하지 않음.
 - 생성: 201 `{ "success":true, "data":{ "jobId":101 } }`; 수정: 200. 운영에서 이 Endpoint 비활성화.
 - 제공처 API로 받은 공고의 자동 동기화/중복 정책은 `source + externalJobId` 고유성 및 트랜잭션에 기반. 같은 외부 ID의 변경은 갱신, 수집 실패를 마감으로 취급하지 않음.
+
+### 3.4 공고 카탈로그 구현 계약 (#5·#6)
+
+- 현재 구현: 공개 로컬 목록·상세, `local` 프로파일에서만 개발용 생성·수정. 추천·적합도·사용자별 읽음 API는 아직 구현하지 않는다. 공고 GET에는 사용자 상태나 AI 점수를 넣지 않는다.
+- `source=MANUAL | SARAMIN | WANTED | JOBKOREA`. 외부 ID는 대소문자를 구분해 고유성을 검사하며 다른 출처의 같은 ID는 별개 공고다. 직무·지역·고용형태는 현재 길이가 제한된 문자열이며 제공처 공통 Enum으로 성급히 변환하지 않는다.
+- 검색 `keyword`는 회사명·공고명 부분 일치, `region`·`jobRole`·`source`는 정확 일치. `activeOnly=true`는 명시적 모집 상태와 현재 마감 시각을 함께 반영하며 `false`는 마감 공고도 포함한다. 응답 `active`도 같은 유효 모집 상태다.
+- `NEWEST`: `postedAt` 내림차순(미확인 날짜 뒤), ID 내림차순. `DEADLINE`: 마감 시각 오름차순(미확인 날짜 뒤), ID 내림차순. 추천 점수순을 대신하지 않는다.
+- 목록·상세는 `jobVersion`과 `updatedAt`을 함께 반환한다. 공고의 `jobVersion`은 최초 1에서 내용 변경 시 증가하고 `updatedAt`은 그 변경 시각이다. `lastCollectedAt`은 마지막 입력·수집 확인 시각이며 사용자 READ/UNREAD와 무관하다. 같은 출처의 외부 ID 갱신은 기존 ID를 보존한다. 내용이 같고 `detailExtractedAt` 같은 확보 시각만 바뀌면 버전·수정 시각은 유지하고 확보·마지막 확인 시각만 갱신하며, 더 오래된 수집 결과로 최신 내용을 덮어쓰지 않는다.
+- 개발용 POST는 `source=MANUAL`, 외부 ID 없음으로 생성한다. `active` 생략 시 true, `detailSource` 생략 시 USER_PROVIDED이며 `detailAvailability` 생략 시 JD 5개 필드의 null 여부에서 AVAILABLE/PARTIAL/UNAVAILABLE을 결정한다. PATCH에서 JD 확보 범주가 바뀌면 `detailAvailability`도 함께 변경해 정합성을 유지한다. PATCH는 생략한 필드 유지, 선택 필드의 명시적 `null`은 제거, JD 목록의 `[]`는 명시적 해당 없음이다. 회사명·공고명·모집 상태 등 필수값에 `null`을 지정하면 400. 출처·외부 ID는 개발 API에서 변경하지 않는다.
+- 입력 길이: 회사명 200자, 제목 300자, 직무·지역·고용형태 100자, 경력·학력·급여 텍스트 300자, 원문 URL 2000자. JD 각 목록은 최대 100항목이며 항목당 공백이 아닌 2000자 이하다. 페이지는 0 이상·크기는 1~100이며 JPA offset 범위를 넘는 요청도 400으로 거절한다.
+- 원문 URL은 입력 시 HTTP(S)만 허용하며 서버가 URL을 다운로드하지 않는다. 예시 공고는 자체 작성 데이터이고 실제 기업·제공처 공고가 아니다.
+- 오류: 형식·Bean Validation은 400 `INVALID_REQUEST`, 잘못된 공고 정책·PATCH 필드·페이지 범위는 400 `INVALID_JOB_INPUT`, 미확보/이용 제한 상세 내용 저장은 400 `RESTRICTED_JOB_CONTENT`, 없는 공고는 404 `JOB_NOT_FOUND`, 중복·동시 수정 충돌은 409 `JOB_CONFLICT`다. 원문 값과 내부 DB 오류를 오류 응답에 노출하지 않는다.
+- 이 작업에서 모든 카드의 AI 표시값은 **미분석**이다. 상세 정보가 없는 상태와 AI가 분석해 근거가 부족한 상태를 혼동해 `INSUFFICIENT_DATA` 결과를 만들어내지 않는다.
 
 ## 4. 사용자 문서·포트폴리오·프로필 계약 (#8)
 

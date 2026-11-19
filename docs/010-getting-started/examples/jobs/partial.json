@@ -1,0 +1,19 @@
+{
+  "companyName": "예시스튜디오 · 자체 예시",
+  "title": "React 프론트엔드 개발자",
+  "jobRole": "FRONTEND",
+  "region": "경기",
+  "employmentType": "FULL_TIME",
+  "experienceText": "경력 무관",
+  "postedAt": "2026-11-19T09:00:00+09:00",
+  "active": true,
+  "originalUrl": "https://example.com/jobmate/frontend-example",
+  "responsibilities": ["모바일 웹 화면 개발"],
+  "requiredQualifications": null,
+  "preferredQualifications": [],
+  "skills": ["React", "TypeScript"],
+  "workConditions": null,
+  "detailAvailability": "PARTIAL",
+  "detailSource": "USER_PROVIDED",
+  "detailExtractedAt": "2026-11-20T09:00:00+09:00"
+}

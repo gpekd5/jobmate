@@ -1,4 +1,9 @@
 spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+    mapper:
+      allow-coercion-of-scalars: false
   application:
     name: jobmate
   datasource:
@@ -6,11 +11,18 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
     hibernate:
       ddl-auto: validate
     open-in-view: false
   flyway:
     enabled: true
+
+server:
+  address: 127.0.0.1
 
 management:
   endpoints:

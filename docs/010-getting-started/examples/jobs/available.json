@@ -1,0 +1,22 @@
+{
+  "companyName": "예시랩 · 자체 예시",
+  "title": "Java 백엔드 개발자",
+  "jobRole": "BACKEND",
+  "region": "서울",
+  "employmentType": "FULL_TIME",
+  "experienceText": "신입·경력",
+  "educationText": null,
+  "salaryText": "면접 후 협의",
+  "postedAt": "2026-11-20T09:00:00+09:00",
+  "deadlineAt": null,
+  "active": true,
+  "originalUrl": "https://example.com/jobmate/backend-example",
+  "responsibilities": ["Spring Boot 기반 채용공고 조회 API 개발", "MySQL 데이터 모델과 쿼리 개선"],
+  "requiredQualifications": ["Java 프로젝트 경험", "HTTP API와 관계형 데이터베이스 기본 이해"],
+  "preferredQualifications": ["자동화 테스트 작성 경험", "React와 API 연동 경험"],
+  "skills": ["Java", "Spring Boot", "MySQL"],
+  "workConditions": ["서울 근무", "주 5일"],
+  "detailAvailability": "AVAILABLE",
+  "detailSource": "USER_PROVIDED",
+  "detailExtractedAt": "2026-11-20T09:00:00+09:00"
+}
