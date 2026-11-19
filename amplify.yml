@@ -1,0 +1,13 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - test -f landing/index.html
+        - echo "Publishing JobMate public landing page only"
+  artifacts:
+    baseDirectory: landing
+    files:
+      - '**/*'
+  cache:
+    paths: []
