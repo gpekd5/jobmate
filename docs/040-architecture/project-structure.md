@@ -1,6 +1,6 @@
 # 프로젝트 구조
 
-[Issue #1](https://github.com/gpekd5/jobmate/issues/1)의 확정 기준을 따른다. 아래는 목표 구조이며, 해당 책임을 구현할 때만 디렉터리를 만든다. 이번 Issue에서는 실제 앱과 빈 `backend/`, `frontend/`, `ops/`를 생성하지 않는다.
+이 문서는 JobMate 저장소의 **목표 디렉터리 구조와 계층 책임에 대한 기준 문서**다. 아래는 목표 구조이며 해당 책임을 실제 구현할 때만 디렉터리를 만든다. 초기 규칙 설정 단계에서는 실제 앱과 빈 `backend/`, `frontend/`, `ops/`를 생성하지 않는다.
 
 ## 모노레포
 
@@ -11,7 +11,7 @@ jobmate/
 ├── docs/          # 구조와 개발 기준
 ├── .github/       # Issue / PR 템플릿
 ├── AGENTS.md      # 공통 AI 개발 행동 규칙
-└── README.md      # 소개와 개발 순서
+└── README.md      # 서비스 소개와 주요 기능
 ```
 
 로컬에서 먼저 실행 가능한 MVP를 만든다. 배포 방식은 후속 Issue에서 결정하며, 운영 자산이 필요해질 때 `ops/`를 추가한다.
@@ -48,4 +48,4 @@ Controller는 Repository를 직접 호출하지 않는다. 비즈니스 규칙�
 
 ## 참고
 
-[BobFull 프로젝트 구조](https://github.com/gpekd5/bobfull-backend/blob/develop/docs/040-architecture/project-structure.md)의 도메인 우선·책임별 분리를 참고했다. BobFull의 운영 구성과 관리 절차를 복제하지 않으며, 충돌 시 JobMate Issue의 확정 기준을 우선한다.
+[BobFull 프로젝트 구조](https://github.com/gpekd5/bobfull-backend/blob/develop/docs/040-architecture/project-structure.md)의 도메인 우선·책임별 분리를 참고했다. BobFull의 운영 구성과 관리 절차를 복제하지 않는다. JobMate의 패키지 책임은 이 문서를, Java 작성 방식은 JobMate 코드 컨벤션을 우선한다.
