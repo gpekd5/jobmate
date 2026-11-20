@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { JobList } from '../features/jobs/JobList';
 import { JobDetail } from '../features/jobs/JobDetail';
+import { ProfilePage } from '../features/profile/ProfilePage';
+import { Recommendations } from '../features/recommendations/Recommendations';
 
 function currentLocation() {
   return {
@@ -67,13 +69,22 @@ export function HomePage() {
             </span>
             JobMate
           </a>
-          <a
-            className="header-nav"
-            href="/#jobs"
-            onClick={(event) => onNavigate(event, '/#jobs')}
-          >
-            공고 탐색 <span aria-hidden="true">↗</span>
-          </a>
+          <nav className="main-nav" aria-label="주요 메뉴">
+            <a
+              className="header-nav"
+              href="/profile"
+              onClick={(event) => onNavigate(event, '/profile')}
+            >
+              내 프로필
+            </a>
+            <a
+              className="header-nav"
+              href="/#jobs"
+              onClick={(event) => onNavigate(event, '/#jobs')}
+            >
+              공고 탐색 <span aria-hidden="true">↗</span>
+            </a>
+          </nav>
         </div>
       </header>
       <div id="main-content" className="page-shell">
@@ -94,29 +105,29 @@ export function HomePage() {
                 </h1>
                 <p className="hero-description">
                   경험과 가능성을 연결하는 채용 탐색.
-                  <br />
-                  먼저 공고를 둘러보고, 다음 기회를 찾아보세요.
+                  <br />내 경험을 정리하고, 맞춤 기회를 찾아보세요.
                 </p>
                 <a className="hero-link" href="#jobs">
                   전체 공고 둘러보기 <span aria-hidden="true">↓</span>
                 </a>
               </div>
               <aside className="recommendation-preview">
-                <span className="coming-soon">준비 중</span>
-                <h2>나를 이해하는 맞춤 추천</h2>
+                <span className="coming-soon">내 경험에서 시작하는 추천</span>
+                <h2>업로드와 AI 분석은 별개예요</h2>
                 <p>
-                  이력서·프로필을 바탕으로 한 추천과 AI 적합도 분석은 후속
-                  기능입니다.
+                  이력서를 저장한 뒤, 동의한 자료만 분석합니다. 결과를
+                  검토·확정하면 나와 공고의 적합도를 비교할 수 있어요.
                 </p>
-                <div className="honest-state">
-                  <span aria-hidden="true">○</span>
-                  <div>
-                    <strong>현재는 미분석 상태</strong>
-                    <span>점수 없이, 공고 원문부터 탐색하세요.</span>
-                  </div>
-                </div>
+                <a
+                  className="hero-link"
+                  href="/profile"
+                  onClick={(event) => onNavigate(event, '/profile')}
+                >
+                  이력서·프로필 설정하기 →
+                </a>
               </aside>
             </section>
+            <Recommendations onNavigate={onNavigate} />
             <JobList
               key={location.search}
               search={location.search}
@@ -124,6 +135,9 @@ export function HomePage() {
               onNavigate={onNavigate}
             />
           </main>
+        ) : location.pathname === '/profile' ||
+          location.pathname === '/setup' ? (
+          <ProfilePage />
         ) : jobId !== null && Number.isSafeInteger(jobId) ? (
           <JobDetail
             key={jobId}
@@ -147,7 +161,9 @@ export function HomePage() {
       <footer className="site-footer">
         <span className="footer-brand">JobMate</span>
         <p>나의 경험에서, 다음 기회로.</p>
-        <small>공고 자동 수집·프로필·AI 추천·읽음 관리는 준비 중입니다.</small>
+        <small>
+          AI 적합도는 합격 확률이 아닙니다. 개인 기능은 localhost 전용입니다.
+        </small>
       </footer>
     </>
   );

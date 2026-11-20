@@ -784,3 +784,343 @@ p {
     padding: 28px;
   }
 }
+
+.main-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.profile-page {
+  max-width: 850px;
+  margin: 0 auto;
+}
+.profile-heading {
+  padding: 18px 0 28px;
+}
+.profile-heading h1 {
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -1.4px;
+  margin-bottom: 16px;
+}
+.profile-heading > p:not(.eyebrow) {
+  color: #5c7468;
+  font-size: 12px;
+}
+.setup-section {
+  border: 1px solid #dce5e0;
+  border-radius: 14px;
+  background: #fff;
+  padding: 22px 18px;
+  margin-bottom: 22px;
+}
+.setup-section > h2 {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+.form-help {
+  font-size: 12px;
+  line-height: 1.85;
+  color: #5f7567;
+  margin: 12px 0 18px;
+  overflow-wrap: anywhere;
+}
+.form-help a {
+  color: #245e4c;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.stack-form {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.stack-form > label,
+.fact-entry > label,
+.form-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  color: #496752;
+}
+.stack-form > button {
+  justify-self: start;
+}
+.stack-form input[type='file'] {
+  padding: 12px 10px;
+  font-size: 11px;
+}
+input[type='file']::file-selector-button {
+  min-height: 44px;
+  background: #edf3ef;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-right: 8px;
+  color: #325b50;
+  font: inherit;
+}
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 0;
+  font-size: 12px;
+  line-height: 1.9;
+  cursor: pointer;
+}
+.checkbox-label input {
+  flex: 0 0 18px;
+  margin-top: 4px;
+}
+.checkbox-label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.document-list {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+.document-item {
+  border-top: 1px solid #e5ece5;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.document-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.profile-details {
+  border-top: 1px solid #e0e7df;
+  padding-top: 12px;
+}
+.profile-details > summary {
+  min-height: 44px;
+  padding: 10px 0;
+  font-size: 13px;
+  color: #416b53;
+}
+.delete-confirm {
+  border: 1px solid #dfbda8;
+  background: #fff7f1;
+  border-radius: 10px;
+  padding: 18px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.message-panel .form-actions {
+  justify-content: center;
+}
+.inline-notice {
+  border: 1px solid #cdded0;
+  background: #edf5ef;
+  color: #315d40;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin: 14px 0 20px;
+  overflow-wrap: anywhere;
+}
+.error-notice {
+  border-color: #e3c6b4;
+  background: #fff6ef;
+  color: #7d492d;
+}
+.profile-editor fieldset {
+  border: 1px solid #dce5dc;
+  border-radius: 10px;
+  padding: 18px 14px;
+  margin: 22px 0;
+  min-width: 0;
+}
+.profile-editor legend {
+  font-size: 14px;
+  font-weight: 700;
+  color: #345b43;
+  padding: 0 8px;
+}
+.fact-entry {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid #e3eae0;
+  margin-top: 18px;
+  padding: 18px 0;
+}
+.fact-entry > button {
+  justify-self: start;
+}
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+textarea {
+  min-width: 0;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #c9d4d1;
+  border-radius: 8px;
+  resize: vertical;
+  font: inherit;
+  color: #193e42;
+  background: #fff;
+}
+textarea:focus-visible {
+  outline: 3px solid #16827a;
+  outline-offset: 3px;
+}
+.recommendation-feed {
+  margin-top: 44px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dce5de;
+}
+.recommendation-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.recommendation-controls label {
+  font-size: 11px;
+  color: #496752;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.recommendation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.recommendation-score {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 18px 0;
+  border-top: 1px solid #e7eee7;
+}
+.recommendation-score > strong {
+  font-size: 35px;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  color: #236b4e;
+}
+.recommendation-score > strong > span {
+  font-size: 20px;
+  padding-left: 2px;
+}
+.recommendation-score > span {
+  font-size: 10px;
+  color: #5b7b64;
+}
+.recommendation-score > .no-score {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+.match-card-summary {
+  font-size: 12px;
+  color: #395d45;
+}
+.match-card-evidence,
+.match-card-unknown {
+  font-size: 11px;
+  color: #567660;
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+.match-card-unknown {
+  color: #7b6a4a;
+}
+.match-panel .form-help {
+  color: #54715e;
+}
+.match-score {
+  padding: 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.match-score > strong {
+  font-size: 32px;
+  color: #24694d;
+  line-height: 1.2;
+}
+.match-score > span {
+  font-size: 13px;
+  color: #42684e;
+}
+.match-findings {
+  margin: 18px 0;
+}
+.match-findings h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.match-findings ul {
+  padding-left: 20px;
+  font-size: 12px;
+  color: #476b52;
+}
+.requirement-result {
+  background: #ffffff80;
+  border: 1px solid #cfded0;
+  padding: 18px 14px;
+  border-radius: 9px;
+  margin: 16px 0;
+}
+.requirement-result h3 {
+  font-size: 14px;
+  margin: 14px 0 8px;
+  overflow-wrap: anywhere;
+}
+.requirement-result p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.gap-badge {
+  color: #82492f;
+  background: #f9e9d7;
+}
+@media (min-width: 600px) {
+  .setup-section {
+    padding: 28px;
+  }
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .main-nav {
+    gap: 24px;
+  }
+}
+@media (max-width: 380px) {
+  .header-inner {
+    gap: 8px;
+    padding: 0 16px;
+  }
+  .brand {
+    gap: 7px;
+    font-size: 20px;
+  }
+  .main-nav {
+    gap: 12px;
+  }
+  .header-nav {
+    font-size: 11px;
+  }
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+}

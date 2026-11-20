@@ -39,7 +39,7 @@ export function JobCard({ job, search, onNavigate }: JobCardProps) {
         마감일 <strong>{formatDate(job.deadlineAt)}</strong>
       </p>
       <div className="card-badges">
-        <span className="badge">미분석</span>
+        <span className="badge">적합도는 상세에서 확인</span>
         <span className="badge badge-neutral">
           {availabilityLabels[job.detailAvailability]}
         </span>

@@ -3,6 +3,7 @@ import { errorMessage, fetchJob, formatDate, safeOriginalUrl } from './api';
 import { availabilityLabels, sourceLabels } from './types';
 import type { JobDetailData, DetailSource } from './types';
 import type { MouseEvent } from 'react';
+import { MatchPanel } from '../recommendations/MatchPanel';
 
 type DetailState =
   | { status: 'loading' }
@@ -113,7 +114,6 @@ export function JobDetail({ jobId, search, onNavigate }: JobDetailProps) {
               {state.data.jobRole ?? '직무 미확인'}
             </p>
             <div className="card-badges">
-              <span className="badge">미분석</span>
               <span className="badge badge-neutral">
                 {availabilityLabels[state.data.detailAvailability]}
               </span>
@@ -147,14 +147,7 @@ export function JobDetail({ jobId, search, onNavigate }: JobDetailProps) {
                 title="근무조건"
                 items={state.data.workConditions}
               />
-              <section className="analysis-notice">
-                <p className="eyebrow">AI MATCHING</p>
-                <h2>아직 분석하지 않은 공고예요</h2>
-                <p>
-                  이력서·프로필 기반 맞춤 추천과 개별 AI 분석은 준비 중입니다.
-                  현재는 적합도 점수나 추천 근거를 제공하지 않습니다.
-                </p>
-              </section>
+              <MatchPanel jobId={jobId} />
             </div>
             <aside className="detail-sidebar">
               <section className="facts-panel">

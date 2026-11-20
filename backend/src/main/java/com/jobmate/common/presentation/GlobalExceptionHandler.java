@@ -45,7 +45,10 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.failure("INVALID_REQUEST", "요청 값을 확인해 주세요.", details));
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.multipart.MultipartException.class})
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequest(Exception exception) {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.failure("INVALID_REQUEST", "요청 형식과 값을 확인해 주세요.", List.of()));
@@ -73,6 +76,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleContentType(HttpMediaTypeNotSupportedException exception) {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
                 .body(ApiResponse.failure("UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 콘텐츠 형식입니다.", List.of()));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(Exception exception) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.failure("FILE_TOO_LARGE", "파일은 10 MiB 이하로 업로드해 주세요.", List.of()));
     }
 
     @ExceptionHandler(Exception.class)

@@ -2,7 +2,7 @@
 
 > 기준일: 2026-11-20 · 문서 작업: #19 · [기능 명세서](../020-product/feature-spec.md)
 >
-> **전체 로드맵을 포함하는 API 명세다.** 채용공고 목록·상세·로컬 개발 입력은 #5·#6 작업에서 구현하며 확정 계약은 §3을 따른다. 추천·개인 데이터 등 나머지 경로는 후속 설계이며 현재 동작을 보장하지 않는다. 외부 채용 사이트 API 경로를 뜻하지 않는다.
+> **전체 로드맵을 포함하는 API 명세다.** 채용공고 목록·상세·로컬 개발 입력은 #5·#6 작업에서 구현하며 확정 계약은 §3을 따른다. 문서·프로필·추천 API는 #8·#9·#6 작업에서 §4~5대로 구현한다. 읽음·인증 등 그 밖의 경로는 후속 설계다. 외부 채용 사이트 API 경로를 뜻하지 않는다.
 > 개인 데이터 API는 #11 인증 전에 **신뢰할 수 있는 루프백 로컬 개발환경에서만** 사용할 수 있다. 실제 업로드 파일과 사용자 정보는 Git에 넣지 않는다.
 
 ## 1. 공통 계약
@@ -68,6 +68,7 @@
 | 희망조건 | PUT | `/api/v1/me/preferences` | 희망 직무/지역 등 설정 | USER | #8 |
 | AI 동의 | GET | `/api/v1/me/ai-consent` | 외부 AI 전송 동의 확인 | USER | #8, #11 |
 | AI 동의 | PUT | `/api/v1/me/ai-consent` | 동의 범위 변경/철회 | USER | #8, #11 |
+| AI 상태 | GET | `/api/v1/me/ai-status` | 설정·비용 선점 상태(키 제외) | LOCAL ONLY | #9 |
 | 추천 | GET | `/api/v1/recommendations` | 적합도 순 추천 피드 | USER | #9, #6 |
 | 추천 | GET | `/api/v1/jobs/{jobId}/match` | 내 프로필 기준 적합도 상세 | USER | #9 |
 | 추천 | POST | `/api/v1/recommendations/refresh` | 필요 시 재평가 요청 (중복/비용 제한) | USER | #9 |
@@ -211,7 +212,7 @@
 
 ### 3.4 공고 카탈로그 구현 계약 (#5·#6)
 
-- 현재 구현: 공개 로컬 목록·상세, `local` 프로파일에서만 개발용 생성·수정. 추천·적합도·사용자별 읽음 API는 아직 구현하지 않는다. 공고 GET에는 사용자 상태나 AI 점수를 넣지 않는다.
+- 현재 구현: 공개 로컬 목록·상세, `local` 프로파일에서만 개발용 생성·수정. 추천·적합도는 §5의 별도 개인 API로 제공하며 사용자별 읽음은 후속이다. 공고 GET에는 사용자 상태나 AI 점수를 넣지 않는다.
 - `source=MANUAL | SARAMIN | WANTED | JOBKOREA`. 외부 ID는 대소문자를 구분해 고유성을 검사하며 다른 출처의 같은 ID는 별개 공고다. 직무·지역·고용형태는 현재 길이가 제한된 문자열이며 제공처 공통 Enum으로 성급히 변환하지 않는다.
 - 검색 `keyword`는 회사명·공고명 부분 일치, `region`·`jobRole`·`source`는 정확 일치. `activeOnly=true`는 명시적 모집 상태와 현재 마감 시각을 함께 반영하며 `false`는 마감 공고도 포함한다. 응답 `active`도 같은 유효 모집 상태다.
 - `NEWEST`: `postedAt` 내림차순(미확인 날짜 뒤), ID 내림차순. `DEADLINE`: 마감 시각 오름차순(미확인 날짜 뒤), ID 내림차순. 추천 점수순을 대신하지 않는다.
@@ -220,296 +221,94 @@
 - 입력 길이: 회사명 200자, 제목 300자, 직무·지역·고용형태 100자, 경력·학력·급여 텍스트 300자, 원문 URL 2000자. JD 각 목록은 최대 100항목이며 항목당 공백이 아닌 2000자 이하다. 페이지는 0 이상·크기는 1~100이며 JPA offset 범위를 넘는 요청도 400으로 거절한다.
 - 원문 URL은 입력 시 HTTP(S)만 허용하며 서버가 URL을 다운로드하지 않는다. 예시 공고는 자체 작성 데이터이고 실제 기업·제공처 공고가 아니다.
 - 오류: 형식·Bean Validation은 400 `INVALID_REQUEST`, 잘못된 공고 정책·PATCH 필드·페이지 범위는 400 `INVALID_JOB_INPUT`, 미확보/이용 제한 상세 내용 저장은 400 `RESTRICTED_JOB_CONTENT`, 없는 공고는 404 `JOB_NOT_FOUND`, 중복·동시 수정 충돌은 409 `JOB_CONFLICT`다. 원문 값과 내부 DB 오류를 오류 응답에 노출하지 않는다.
-- 이 작업에서 모든 카드의 AI 표시값은 **미분석**이다. 상세 정보가 없는 상태와 AI가 분석해 근거가 부족한 상태를 혼동해 `INSUFFICIENT_DATA` 결과를 만들어내지 않는다.
+- 전체 공고 API는 개인 AI 상태를 반환하지 않는다. 적합도 상태는 §5에서 조회한다. 상세 정보가 없는 상태와 AI가 분석해 근거가 부족한 상태를 혼동해 `INSUFFICIENT_DATA` 결과를 만들어내지 않는다.
 
-## 4. 사용자 문서·포트폴리오·프로필 계약 (#8)
+## 4. 사용자 문서·포트폴리오·프로필 계약 (#8 구현)
 
-### 4.1 문서 업로드/목록/삭제
+모든 개인 API는 `local` 프로파일·루프백 접속에서만 제공한다. 고정 로컬 소유자 1을 서버가 결정하며 클라이언트의 사용자 ID를 받지 않는다. 비로컬 프로파일은 404, 외부 주소·Host·Origin은 403 `LOCAL_ONLY`. 개인 응답은 `Cache-Control: no-store`다. 인증·다중 사용자는 #11 후속이다.
 
-`POST /api/v1/me/documents`: `multipart/form-data`, 필드 `type=RESUME|PORTFOLIO`, `file=<binary>`
+### 4.1 문서와 링크
 
-```json
-{
-  "success": true,
-  "data": {
-    "documentId": 14,
-    "type": "RESUME",
-    "fileName": "resume.pdf",
-    "analysisStatus": "NOT_ANALYZED",
-    "uploadedAt": "2026-11-20T09:10:00+09:00"
-  }
-}
-```
+- `POST /api/v1/me/documents`: multipart `type=RESUME|PORTFOLIO`, `file`; 201 반환 `data={documentId,type,fileName,analysisStatus,uploadedAt}`. 업로드만으로 AI를 호출하지 않는다.
+- `GET /api/v1/me/documents`: `data`는 위 메타데이터의 배열. 원본 다운로드·저장 경로·추출 원문은 제공하지 않는다.
+- `DELETE /api/v1/me/documents/{id}`: 204. 관련 초안·확정 프로필·추천 캐시를 무효화하고 원본 삭제를 처리한다. 파일 삭제 실패는 비공개 삭제 티켓에 보존해 재시도한다.
+- PDF/DOCX만 10 MiB 이하. 확장자·MIME·시그니처·파싱을 검사하고 암호화·손상·매크로·위험한 PDF action/첨부·DOCX 외부 관계·과도한 압축을 거절한다. 보수적 검증으로 DOCX의 일반 외부 하이퍼링크도 거절한다. 이미지 PDF OCR은 지원하지 않는다.
+- RESUME는 새 업로드로 교체된다. DB 커밋 후 이전 원본을 지우며 새 프로필 확정 전까지 기존 확정 프로필·추천은 유지한다. 명시적인 문서/링크 삭제는 관련 개인 결과를 무효화한다.
+- `POST /api/v1/me/portfolio-links`: `{url,description}` → 201 `{linkId,url,description}`. GET은 배열, DELETE `/{id}`는 204.
+- 링크는 `https://github.com/{owner}/{repo}` 공개 저장소만 허용한다. 등록만으로 조회하지 않는다. 분석 요청에서 선택한 링크의 `raw.githubusercontent.com/{owner}/{repo}/HEAD/README.md`만 5초/1 MiB 한도로 읽는다. 리다이렉트·로그인·비공개 저장소·다른 파일 탐색은 없다.
 
-- 이력서는 PDF/DOCX, 파일당 최대 10 MiB로 제한한다. 확장자/MIME/파일 시그니처 검사, 악성·매크로/암호화/손상된 파일 거절, 소유권 보호/비공개 경로·임의 저장 키를 사용한다.
-- 사용자가 삭제/교체할 때까지 원본을 비공개 보관한다. 삭제/탈퇴 시 원본·추출물·관련 캐시의 접근을 즉시 차단하고 삭제하며, 백업이 있다면 최대 30일 이내 파기하고 복원 시 삭제 기록을 재적용한다.
-- **업로드만 하면 NOT_ANALYZED, AI 호출 없음.** 사용자 'AI 분석하기' 명시 요청에서만 호출한다. 분석 성공/실패는 확정 프로필 상태와 별개다.
-- `GET /api/v1/me/documents`: 메타데이터 목록(원본 파일/추출 본문은 기본 반환하지 않음). 문서 분석 상태는 `NOT_ANALYZED | ANALYZING | ANALYZED | FAILED`.
-- `DELETE /api/v1/me/documents/{documentId}`: 204. 원본·추출 결과·캐시·백업의 삭제/파기 정책 적용, 다른 사용자 소유 ID는 404/403 정책에 맞게 차단.
+### 4.2 명시적 분석과 초안 검토
 
-### 4.2 포트폴리오 링크
-
-`POST /api/v1/me/portfolio-links`
+`POST /api/v1/me/profile/analyses` → 202. 다음 요청 전에 별도의 PROFILE_EXTRACTION 동의가 필요하다.
 
 ```json
-{ "url": "https://github.com/example-user/example-project", "description": "Spring Boot 프로젝트" }
+{"documentIds":[14],"portfolioLinkIds":[],"analysisMode":"EXTERNAL_LLM"}
 ```
 
-201 응답 `{ "success":true, "data":{ "linkId":3, "url":"https://github.com/example-user/example-project" } }`.
+- 이력서 포함 문서 1~10개, 선택 링크 최대 5개. 지원 모드는 EXTERNAL_LLM만이다.
+- 응답/`GET /api/v1/me/profile/analyses/{id}`의 `data`는 `{analysisId,status,result,errorCode,createdAt,completedAt,documentIds,portfolioLinkIds}`. `status=PENDING|RUNNING|SUCCEEDED|FAILED`; 실패 결과는 null과 안전한 코드다.
+- 문서 상태는 `NOT_ANALYZED|ANALYZING|ANALYZED|FAILED`. PENDING 작업은 서버 비동기로 실행한다. 중복 진행 요청은 409, 실패 후 명시적 새 요청으로 재시도한다. 시작·응답 저장 전 동의/원본/삭제 epoch를 확인하고 삭제·철회 중 도착한 결과는 폐기한다. 재시작 시 중단 작업은 실패 처리한다.
+- 연락처·이메일·식별번호·라벨이 있는 이름/주소·일반적인 한국 도로명주소를 마스킹한다. 정규식 마스킹은 모든 형태를 보장하지 않으므로 업로드 전에 불필요한 민감정보를 제거한다. 원문은 분석 시 메모리에서만 추출하고 DB/로그에 저장하지 않는다.
+- `result`는 다음 5개 배열이며 자동 확정하지 않는다: `workExperiences`, `skills`, `projects`, `education`, `certifications`. 각 항목은 `{name,context,summary,evidence,confidence}`. evidence는 입력에서 확인되는 인용만 수락한다.
+- 문서만 선택한 요청은 같은 문서 ID 집합·삭제 epoch·동의 epoch·모델·프롬프트 버전의 성공 결과를 재사용한다. 이 경우 유료 호출·새 비용 예약이 없다. 원격 README는 내용 버전이 바뀔 수 있으므로 링크 포함 요청은 명시적 요청마다 다시 읽고 분석한다. 응답의 `modelVersion`·`promptVersion`으로 분석 버전을 구분한다.
+- `context=WORK|TEAM_PROJECT|PERSONAL_PROJECT|TRAINING_PROJECT|LEARNING|UNKNOWN`, `confidence=HIGH|MEDIUM|LOW|UNKNOWN`. 프로젝트·학습을 상용 실무로 승격하거나 미기재 경력을 추정하지 않는다.
 
-- `GET /api/v1/me/portfolio-links` / `DELETE /api/v1/me/portfolio-links/{linkId}`.
-- URL 입력은 링크 등록일 뿐 **자동 GitHub 전체 계정 크롤링/비공개 저장소 접근 승인**이 아님. 서버가 링크를 가져오게 된다면 SSRF 방어, 호스트 허용 목록, 명시적 가져오기 범위와 권한 확인이 필요.
+### 4.3 확정 프로필·희망조건
 
-### 4.3 AI 분석 시작 및 상태 조회
+`GET /api/v1/me/profile`의 초기 `data`는 `{profileVersion:0,confirmed:false,workExperiences:[],skills:[],projects:[],education:[],certifications:[]}`다.
 
-`POST /api/v1/me/profile/analyses`
+`PUT /api/v1/me/profile`은 GET의 **현재 profileVersion 필수**, `confirmed:true`와 위 5개 배열로 전체 교체한다. 검토자가 초안을 수정할 수 있다. 각 사실의 이름/맥락/요약/근거/신뢰도를 보존한다. 성공은 200, 서버가 현재 확정 프로필을 저장하고 버전을 증가한다. 과거 확정본 복원 기능은 없다. 오래된 버전은 409 `PROFILE_CONFLICT`. 문서 교체는 확정 프로필을 자동 변경하지 않는다.
+
+`GET/PUT /api/v1/me/preferences`:
 
 ```json
-{
-  "documentIds": [14],
-  "portfolioLinkIds": [3],
-  "analysisMode": "EXTERNAL_LLM"
-}
+{"desiredRoles":["BACKEND"],"regions":["서울"],"employmentTypes":["FULL_TIME"],"minSalary":null,"avoidDispatch":true,"avoidFrequentTravel":false}
 ```
 
-- 초기 분석은 **사용자 버튼 클릭으로만 실행하는 OpenAI API 기반 EXTERNAL_LLM**이다. 별도의 업체·분석 목적·전송 범위 동의를 서버에서 확인하고 연락처/이메일/상세 주소 등 개인정보를 마스킹·최소화한다. 단순 요청 플래그는 동의를 대신하지 않는다. LOCAL_ONLY 모델 모드는 초기 범위 제외.
-- `LOCAL_ONLY`는 구현된 로컬 추출이 있는 경우만 지원, 미지원이면 명확한 오류를 반환. API 설계가 모든 분석 모드의 구현을 강제하지 않음.
-- 분석은 지연될 수 있으므로 202 + 추적 ID를 반환한다.
+모두 선택이며 미입력은 제한 없음이다. `minSalary`는 연봉 원(KRW) 단위다. 직무/지역/고용형태는 공고와 같은 문자열이다. 선호조건 변경도 프로필 버전을 증가시켜 캐시를 분리한다. 확인되지 않은 공고 조건으로 강제 탈락시키지 않는다.
+
+### 4.4 동의와 실행 가능 상태
+
+- `GET/PUT /api/v1/me/ai-consent`: 요청 `{provider:"OPENAI",purposes:["PROFILE_EXTRACTION","JOB_MATCHING"],consented:true}`. 목적은 부분 선택 가능하다. 응답은 동일 필드와 서버 `consentVersion`. 동의 시각/정책 버전도 DB에 기록한다.
+- 동의 철회/범위 변경은 epoch를 증가시키고 진행 결과 저장·이전 epoch 캐시 재사용을 차단한다. 철회가 이미 전송된 요청을 공급자에서 되돌리지는 못한다. 명시적 원본 삭제는 관련 저장 결과도 삭제한다.
+- `GET /api/v1/me/ai-status`: `{available,reasonCode,model,budgetLimitUsd,reservedUsd}`. 키는 반환하지 않는다. 동의 여부는 별도 동의 API로 확인한다. 이 GET도 AI 호출이 없다.
+- 동의 없음 403 `AI_CONSENT_REQUIRED`, 설정 없음 503 `AI_NOT_CONFIGURED`, 예산 소진 429 `AI_BUDGET_EXHAUSTED`. 어떤 경우에도 외부 AI로 자동 폴백하지 않는다.
+
+## 5. 추천·적합도 계약 (#9·#6 구현)
+
+### 5.1 조회
+
+`GET /api/v1/recommendations?page=0&size=20&sort=MATCH_SCORE&onlyActive=true&analysisStatus=ALL`
+
+- `sort=MATCH_SCORE|NEWEST|DEADLINE`, `analysisStatus=ALL|ANALYZED|NOT_ANALYZED`, page≥0, size 1~100. `viewStatus`는 ALL만 허용한다. READ/UNREAD·viewedAt·NEW는 #11과 함께 후속 구현하며 현재 반환하지 않는다.
+- 미확정 프로필 409 `PROFILE_NOT_CONFIRMED`, 추천 목적 동의 없음 403. 키·예산이 없어도 동의·프로필이 있으면 저장 결과/미분석 피드를 조회할 수 있다. 조회는 유료 호출을 하지 않는다.
+- `data={items,page,size,totalElements,totalPages,hasNext}`. 각 item은 공고 요약과 `match`를 포함한다. 분석되지 않은 공고를 숨기지 않는다. MATCH_SCORE는 숫자 내림차순, null 뒤, 게시일/ID 내림차순으로 안정 정렬한다. 기존 `/jobs` 검색은 그대로 유지한다.
+- `GET /api/v1/jobs/{jobId}/match`와 피드의 `match`는 같은 계약이다:
 
 ```json
-{
-  "success": true,
-  "data": { "analysisId": 9001, "status": "PENDING" }
-}
+{"jobId":101,"status":"NOT_ANALYZED","score":null,"scoreMeaning":"채용요건 적합도(합격 확률 아님)","summary":"아직 분석하지 않은 공고입니다.","requirements":[],"strengths":[],"gaps":[],"unknowns":[],"evidenceCount":0,"evaluatedCategories":[],"profileVersion":2,"jobVersion":1,"scoringVersion":"v1","modelVersion":"UNCONFIGURED","promptVersion":"job-match-v2","analyzedAt":null,"errorCode":null}
 ```
 
-`GET /api/v1/me/profile/analyses/9001`
+상태는 `NOT_ANALYZED|PENDING|READY|INSUFFICIENT_DATA|BUDGET_EXHAUSTED|FAILED`. 실제 설정/정책 버전은 서버 응답을 사용한다. 점수 없는 상태에서 0% 등 가짜 값을 표시하지 않는다. `requirements` 항목은 `{id,category,text,match,reason,evidence}`이며 근거는 확정 프로필의 실제 사실로 서버가 매핑한다.
 
-```json
-{
-  "success": true,
-  "data": {
-    "analysisId": 9001,
-    "status": "SUCCEEDED",
-    "result": {
-      "workExperiences": [
-        { "role": "장비 SW 개발", "context": "실무", "evidence": "이력서 경력 섹션", "confidence": "HIGH" }
-      ],
-      "skills": [
-        { "name": "Spring Boot", "context": "TEAM_PROJECT", "evidence": "포트폴리오 프로젝트", "confidence": "HIGH" }
-      ],
-      "projects": [],
-      "education": [],
-      "certifications": []
-    },
-    "createdAt": "2026-11-20T09:12:00+09:00",
-    "completedAt": "2026-11-20T09:12:05+09:00"
-  }
-}
-```
+### 5.2 점수와 근거
 
-- 분석 작업 상태는 `PENDING | RUNNING | SUCCEEDED | FAILED`, 문서 상태는 `NOT_ANALYZED | ANALYZING | ANALYZED | FAILED`로 구분한다. `FAILED`일 때 `result:null`과 안전한 오류 코드. 명시 재분석 클릭 없이 자동 재호출하지 않는다.
-- `result`는 **사용자 확인 전 초안**. 자동으로 확정 프로필을 덮어쓰지 않는다.
-- 연차·기술 수준·학력 등을 이력서 밖에서 추측하지 않는다. 분석 오류·불완전한 PDF·예산 초과 시에도 원본 유지.
+- `category=RESPONSIBILITY|MUST|PREFERRED|WORK_CONDITION`, `match=MATCH|PARTIAL|GAP|UNKNOWN`.
+- 가중치 **35/35/20/10**. MATCH=1, PARTIAL=0.5, GAP=0. UNKNOWN은 0점으로 치환하지 않고 해당 평가에서 제외한다. 제공되지 않은 범주도 분모에서 제외하고 남은 범주를 재정규화한다.
+- 중복을 제거한 구체 JD 요건이 최소 2개이고 담당업무/필수요건이 하나 이상이어야 한다. HIGH/MEDIUM의 비어 있지 않은 프로필 근거로 확인된 비교도 최소 2개(담당업무/필수요건 포함)여야 숫자를 산출한다. 부족하면 `score:null`, `INSUFFICIENT_DATA`.
+- 모델은 숫자를 만들지 않는다. 요구조건 ID별 분류/이유/프로필 근거 ID만 구조화해서 반환하고 Java가 ID·근거·분류를 검증해 점수를 계산한다. 존재하지 않는 근거는 거절하고 근거 없는 비교는 UNKNOWN이다. C# 실무/교육 프로젝트를 Java 상용 실무 MATCH로 과장하지 않는다.
+- 미확인과 불일치를 분리하며 필수요건 GAP/PARTIAL은 경고로 표시한다. 근거 수와 평가 범위를 함께 보여준다. 점수는 합격 확률이 아니다.
+- 캐시는 `owner+profileVersion+jobVersion+consentVersion+scoringVersion+modelVersion+promptVersion` 고유키다. 버전 변경 뒤 이전 점수를 현재 값처럼 제공하지 않는다.
 
-### 4.4 프로필 및 희망 조건
+### 5.3 비동기 분석·제한
 
-`GET /api/v1/me/profile` · `PUT /api/v1/me/profile`
+- `POST /api/v1/jobs/{jobId}/match/analyses` → 202 `{jobId,status,requestId}`. 동일 조합 진행/완료는 재사용하며 실패 뒤에는 명시적 재요청이 가능하다. 불충분한 JD/프로필은 AI 없이 INSUFFICIENT_DATA로 처리한다.
+- `POST /api/v1/recommendations/refresh` → 202 `{jobId:null,status:"PENDING"|"UNCHANGED",requestId}`. 피드 GET마다 호출하지 않는다.
+- 로컬 스케줄러는 60초마다 모집 중이며 현재 버전 캐시가 없는 공고를 먼저 필터링하고 최신 200개 후보를 확인한다. #7 수집 회차가 없으므로 현재는 이 갱신 1회를 회차로 취급한다. 회차 최대 10건, 자동 일 20건, 선호 우선 80%/추가 탐색 20%(부족 슬롯 재배정), 개별 일 3건. 일 경계는 Asia/Seoul다. 전체 검색/개별 분석으로 자동 후보에서 빠진 공고도 접근 가능하다.
+- DB 원자 예약·고유키·작업 claim으로 동시 중복 호출을 막는다. 비동기 작업은 동의·프로필·공고 버전을 실행 전후 재검증한다. 재시작 중단 작업을 실패 처리하고 무제한 자동 재시도하지 않는다.
+- 공통 OpenAI 게이트웨이가 호출마다 최대 입력 바이트/출력 토큰과 명시된 단가로 비용을 선점한다. 누적 상한은 **최대 $5**다. 타임아웃·실패도 보수적으로 선점액을 환급하지 않고, 일시적 429/5xx/연결 오류만 1회 재시도하며 재시도 비용도 별도 선점한다. 실청구 API가 아니며 설정한 단가의 정확성과 공급자 별도 제한을 확인해야 한다.
+- 모델·키·가격을 명시하기 전 기본 비활성화다. Responses API `store:false`, strict JSON schema, 고정 OpenAI HTTPS 주소/타임아웃을 사용한다. 키/원문/전체 응답을 로그에 남기지 않는다.
 
-```json
-{
-  "profileVersion": 2,
-  "confirmed": true,
-  "workExperiences": [
-    { "role": "제조 장비 소프트웨어", "employmentType": "WORK", "summary": "장비 제어 및 연동" }
-  ],
-  "skills": [
-    { "name": "Java", "context": "TRAINING_PROJECT" },
-    { "name": "C#", "context": "WORK" }
-  ],
-  "projects": [],
-  "education": [],
-  "certifications": []
-}
-```
-
-- `GET`의 반환 형태는 위 필드가 `data`로 감싸진 형태. `PUT`도 승인·수정된 데이터로 전체 교체하며 서버가 `profileVersion`을 증가시킨다.
-- 프로필에 없는 항목을 임의 보충하지 않는다. 파일을 새로 올려도 기존 확정 프로필은 유지하고, 사용자가 분석 결과를 검토·확정한 뒤에만 `profileVersion`을 올린다.
-- 충돌 검출을 위한 버전 기반 갱신은 고려하고, 구현 시 단일 사용자 흐름에 맞게 결정한다.
-
-`GET /api/v1/me/preferences` · `PUT /api/v1/me/preferences`
-
-```json
-{
-  "desiredRoles": ["BACKEND", "MES"],
-  "regions": ["SEOUL", "GYEONGGI"],
-  "employmentTypes": ["FULL_TIME"],
-  "minSalary": null,
-  "avoidDispatch": true,
-  "avoidFrequentTravel": true
-}
-```
-
-- **모든 선호 항목은 선택**. null/빈 배열은 필터 미적용. `avoid*` 항목의 강제 제외 vs 점수 감점 여부는 추천 정책에서 확정.
-- 지역·직무 등 Enum 값은 DB/프론트와 일치시켜 단일 계약으로 관리한다.
-
-### 4.5 외부 AI 전송 동의
-
-`GET /api/v1/me/ai-consent` · `PUT /api/v1/me/ai-consent`
-
-```json
-{
-  "provider": "OPENAI",
-  "purposes": ["PROFILE_EXTRACTION", "JOB_MATCHING"],
-  "consented": false
-}
-```
-
-- 기본 공급자 OpenAI. 사용자에게 전송 데이터·분석 목적·보관·철회 효과를 알리고 동의 시점/정책 버전을 기록한다. 파일 업로드만으로 동의하지 않는다.
-- 서버가 동의를 검증하지 못하면 `EXTERNAL_LLM` 호출 차단(403 `AI_CONSENT_REQUIRED`).
-- 기존 비동기 작업 중 동의 철회 후 처리 취소/결과 삭제 범위는 정책 결정 필요. 동의 없이 모델에 전송하도록 자동 폴백하지 않는다.
-
-## 5. 추천·적합도 계약 (#9·#6)
-
-### 5.1 추천 피드
-
-`GET /api/v1/recommendations?page=0&size=20&sort=MATCH_SCORE&onlyActive=true&viewStatus=ALL`
-
-- `sort=MATCH_SCORE | NEWEST | DEADLINE`, `viewStatus=ALL | READ | UNREAD`(기본 ALL), `analysisStatus=ALL | ANALYZED | NOT_ANALYZED`. 미분석 공고도 검색/추천/추가 탐색에서 표시한다. 선호 조건은 사용자 Preferences를 기본 적용한다.
-- 프로필이 확정되지 않으면 `409 PROFILE_NOT_CONFIRMED` 등으로 안내. 무근거 점수를 생성하지 않음.
-
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "jobId": 101,
-        "title": "백엔드 개발자",
-        "companyName": "예시 기업",
-        "source": "MANUAL",
-        "region": "서울",
-        "originalUrl": "https://example.com/jobs/101",
-        "match": {
-          "status": "READY",
-          "score": 87,
-          "summary": "프로젝트 기술과 일부 업무가 일치합니다.",
-          "strengths": ["Spring Boot 프로젝트", "MySQL 최적화 경험"],
-          "gaps": ["상용 웹 운영 경력 확인 필요"],
-          "unknowns": ["상세 근무 조건 미제공"],
-          "analyzedAt": "2026-11-20T09:20:00+09:00"
-        },
-        "viewedAt": null,
-        "isNew": true
-      },
-      {
-        "jobId": 102,
-        "title": "개발자",
-        "companyName": "상세정보 없는 기업",
-        "source": "SARAMIN",
-        "region": null,
-        "originalUrl": "https://example.com/jobs/102",
-        "match": {
-          "status": "INSUFFICIENT_DATA",
-          "score": null,
-          "summary": "지원자격 상세 정보를 확인할 수 없습니다.",
-          "strengths": [],
-          "gaps": [],
-          "unknowns": ["필수 지원자격 미제공"],
-          "analyzedAt": null
-        },
-        "viewedAt": "2026-11-20T09:30:00+09:00",
-        "isNew": false
-      }
-    ],
-    "page": 0,
-    "size": 20,
-    "totalElements": 2,
-    "totalPages": 1,
-    "hasNext": false
-  }
-}
-```
-
-- `match.status = NOT_ANALYZED | PENDING | READY | INSUFFICIENT_DATA | BUDGET_EXHAUSTED | FAILED`. AI가 분석하지 않은 공고는 `score=null`이고 사용자는 개별 분석 요청 가능. `viewedAt=null`이면 미확인, 날짜가 있으면 확인, `isNew`는 최근 수집 여부로 별도 개념이다.
-- 점수 0~100은 **적합도(채용 요건 일치 정도)**이지 합격 확률이 아니다. 분석 미완료/근거 부족 상태는 `score:null`을 허용.
-- `sort=MATCH_SCORE`일 때 숫자 미산출 공고의 하단 배치·표시를 별도 일관 규칙으로 둔다.
-- 캐시 키는 `profileVersion + jobVersion + scoringVersion + modelVersion + promptVersion`. 변경된 조합에 한해서만 재분석하고, 채용공고 수집 시 PDF/포트폴리오를 재분석하지 않는다.
-
-### 5.2 적합도 상세
-
-`GET /api/v1/jobs/101/match`
-
-```json
-{
-  "success": true,
-  "data": {
-    "jobId": 101,
-    "status": "READY",
-    "score": 87,
-    "scoreMeaning": "채용요건 적합도(합격 확률 아님)",
-    "requirements": [
-      {
-        "category": "MUST",
-        "text": "Java/Spring 경험",
-        "match": "PARTIAL",
-        "reason": "Spring Boot 프로젝트 경험은 있으나 상용 운영 경력은 확인되지 않음",
-        "evidence": ["확정 프로필: Spring Boot 팀 프로젝트"]
-      },
-      {
-        "category": "PREFERRED",
-        "text": "제조업 이해",
-        "match": "MATCH",
-        "reason": "제조 장비 SW 업무 경험",
-        "evidence": ["확정 프로필: 제조 장비 SW 경력"]
-      }
-    ],
-    "strengths": ["기술스택·제조 경험"],
-    "gaps": ["상용 웹 운영 경력 검증 필요"],
-    "unknowns": [],
-    "profileVersion": 2,
-    "jobVersion": 3,
-    "scoringVersion": "v1",
-    "analyzedAt": "2026-11-20T09:20:00+09:00"
-  }
-}
-```
-
-- `category=MUST | PREFERRED | RESPONSIBILITY`, `match=MATCH | PARTIAL | GAP | UNKNOWN`. 미확인과 불일치 분리. 초기 가중치 담당업무 35/필수 자격 35/우대 20/근무조건 10, MATCH=1/PARTIAL=0.5/GAP=0, UNKNOWN은 불일치와 구분한다.
-- 검증 가능한 상세 JD 요건/업무가 2개 이상이며 그중 필수 자격 또는 담당업무가 최소 하나, 확정 프로필이 있어야 점수를 산출. 미충족 시 `score=null`+`INSUFFICIENT_DATA`. 제공되지 않은 범주는 가중치 분모에서 제외하여 재정규화하고 근거 범위를 표시한다. 필수 자격 미충족은 감점 및 경고로 표시하되 공고를 목록에서 삭제하지 않는다.
-- 자동 추천 1차 필터는 일반 코드로 수행, 의미 비교는 LLM 활용 가능. 점수는 출력 검증·가중치 정책을 거쳐 산출하며 임의 LLM 숫자를 바로 노출하지 않는다.
-- 데이터/동의/예산 미충족일 때 `INSUFFICIENT_DATA` 또는 `FAILED`과 명확한 이유를 표시.
-
-### 5.3 필요 시 재추천
-
-`POST /api/v1/recommendations/refresh`: 프로필 변경이나 재수집으로 점수가 무효화된 경우를 위한 보조 API. 202 `{ "success":true, "data":{ "status":"PENDING", "requestId":"rec-20261120-001" } }` [설계안].
-
-- 사용자가 피드를 열 때마다 반복 실행 금지, 동일한 버전에 대한 중복 요청 억제, 비용/호출 횟수 제한.
-- 기본은 서버 자동 재계산이며 수동 새로고침은 선택.
-
-### 5.4 미분석 공고 개별 AI 분석 (#9)
-
-`POST /api/v1/jobs/{jobId}/match/analyses` — 사용자가 'AI 적합도 분석하기'를 눌렀을 때만 호출(이력서 원문 재분석 없음). 결과 캐시가 유효하면 새 LLM 호출 없이 반환. 202 반환 예시:
-
-```json
-{"success":true,"data":{"jobId":102,"status":"PENDING","requestId":"job-match-102-01"}}
-```
-
-- 사용자당 하루 개별 분석 3건 제한, 자동 분석 회차당 10건·하루 20건 제한, 누적 $5 비용 가드. 같은 조합 분석 중복/재호출 방지.
-- 예산이 없으면 `AI_BUDGET_EXHAUSTED` 등 명확한 상태/오류, JD 부족이면 `INSUFFICIENT_DATA`. 결과 조회는 `GET /api/v1/jobs/{jobId}/match`.
-
-### 5.5 공고 자동 확인/미확인 (#6)
-
-- 공고 카드 클릭 → **상세 정보 로드 성공** → `PUT /api/v1/me/jobs/{jobId}/viewed` 실행. 같은 공고를 다시 열어도 최초 `viewedAt`을 보존하는 멱등 처리. 200 반환:
-
-```json
-{"success":true,"data":{"jobId":101,"viewedAt":"2026-11-20T09:30:00+09:00"}}
-```
-
-- 사용자 선택 시 `DELETE /api/v1/me/jobs/{jobId}/viewed` → 204, 미확인으로 되돌림.
-- 추천/목록의 `viewStatus=ALL|READ|UNREAD` 필터는 개인 인증 데이터. 공개 API에서 읽음 여부 노출 금지.
-- **GET 공고 상세 자체에 읽음 기록을 섞지 않는다.** 미리보기/프리페치가 읽음으로 오기록되지 않도록 프론트에서 명시적으로 상태 변경 요청.
-- `isNew`는 최근 수집 여부로 읽음·AI 분석과 분리하고 공고 수정만으로 읽음을 초기화하지 않는다.
 
 ## 6. 관심 공고·지원 기록 (#10)
 
@@ -594,7 +393,7 @@
 
 ### 8.3 분석·모니터링
 - 모델/프롬프트 버전, 토큰·시간·성공/실패·비용 추정·재시도 등의 **내부 운영 지표**는 #9/#16에서 기록한다. 원문 이력서·LLM 전체 입력을 일반 로그로 남기지 않는다.
-- 외부 LLM 공급자/모델·일별 비용 한도·분석 재사용/배치 정책은 **확정 전**. 임의로 API 키나 모델 이름을 하드코딩하지 않는다.
+- 외부 LLM 공급자와 비용/재사용 정책은 §5·§9 기준이며 모델 이름/단가는 실행 설정으로 지정한다. 임의로 API 키나 모델 이름을 하드코딩하지 않는다.
 
 ## 9. 확정한 초기 정책과 외부 의존 조건
 
